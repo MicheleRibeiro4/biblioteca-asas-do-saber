@@ -1,0 +1,5 @@
+{
+  "name": "biblioteca",
+  "description": "Sistema moderno de gestão de biblioteca escolar com perfis para Alunos, Professores e Bibliotecários.",
+  "requestFramePermissions": []
+}
