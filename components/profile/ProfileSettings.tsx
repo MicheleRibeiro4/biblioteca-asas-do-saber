@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabase';
 import { Modal, Input, Button } from '../ui/Layouts';
 import { useToast } from '../../context/ToastContext';
-import { User, Lock, Image as ImageIcon, Save } from 'lucide-react';
+import { User, Lock, Image as ImageIcon, Save, LogOut } from 'lucide-react';
 
 interface ProfileSettingsProps {
   isOpen: boolean;
@@ -11,13 +12,14 @@ interface ProfileSettingsProps {
 }
 
 export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClose }) => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const { addToast } = useToast();
   
   const [photoUrl, setPhotoUrl] = useState(user?.foto_perfil_url || '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isLogoutConfirm, setIsLogoutConfirm] = useState(false);
 
   if (!user) return null;
 
@@ -85,73 +87,102 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
     }
   };
 
+  const handleLogout = () => {
+    onClose();
+    logout();
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Configurações do Perfil">
-      <form onSubmit={handleUpdate} className="space-y-6">
-        
-        {/* Photo Section */}
-        <div className="space-y-4 pb-6 border-b border-gray-100">
-          <h4 className="font-medium text-gray-900 flex items-center gap-2">
-            <ImageIcon size={18} className="text-indigo-500" />
-            Foto de Perfil
-          </h4>
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} title="Configurações do Perfil">
+        <form onSubmit={handleUpdate} className="space-y-6">
           
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-indigo-100 overflow-hidden flex-shrink-0">
-              {photoUrl ? (
-                <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = ''} />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <User size={32} />
-                </div>
-              )}
+          {/* Photo Section */}
+          <div className="space-y-4 pb-6 border-b border-gray-100">
+            <h4 className="font-medium text-gray-900 flex items-center gap-2">
+              <ImageIcon size={18} className="text-indigo-500" />
+              Foto de Perfil
+            </h4>
+            
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-indigo-100 overflow-hidden flex-shrink-0">
+                {photoUrl ? (
+                  <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = ''} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <User size={32} />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <Input 
+                  label="URL da Imagem" 
+                  placeholder="https://exemplo.com/minha-foto.jpg"
+                  value={photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">Cole o link de uma imagem pública.</p>
+              </div>
             </div>
-            <div className="flex-1">
+          </div>
+
+          {/* Password Section */}
+          <div className="space-y-4 pb-6 border-b border-gray-100">
+            <h4 className="font-medium text-gray-900 flex items-center gap-2">
+              <Lock size={18} className="text-indigo-500" />
+              Alterar Senha
+            </h4>
+            
+            <div className="grid grid-cols-1 gap-4">
               <Input 
-                label="URL da Imagem" 
-                placeholder="https://exemplo.com/minha-foto.jpg"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
+                type="password"
+                label="Nova Senha"
+                placeholder="Mínimo 4 caracteres"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
               />
-              <p className="text-xs text-gray-500 mt-1">Cole o link de uma imagem pública.</p>
+              <Input 
+                type="password"
+                label="Confirmar Nova Senha"
+                placeholder="Repita a senha"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                error={newPassword !== confirmPassword && confirmPassword ? "As senhas não coincidem" : undefined}
+              />
             </div>
           </div>
-        </div>
 
-        {/* Password Section */}
-        <div className="space-y-4">
-          <h4 className="font-medium text-gray-900 flex items-center gap-2">
-            <Lock size={18} className="text-indigo-500" />
-            Alterar Senha
-          </h4>
-          
-          <div className="grid grid-cols-1 gap-4">
-            <Input 
-              type="password"
-              label="Nova Senha"
-              placeholder="Mínimo 4 caracteres"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-            <Input 
-              type="password"
-              label="Confirmar Nova Senha"
-              placeholder="Repita a senha"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              error={newPassword !== confirmPassword && confirmPassword ? "As senhas não coincidem" : undefined}
-            />
+          <div className="flex justify-between items-center pt-2">
+            <Button type="button" variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700 px-2" onClick={() => setIsLogoutConfirm(true)}>
+                <LogOut size={18} className="mr-2" /> Sair da Conta
+            </Button>
+            <div className="flex gap-3">
+                <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+                <Button type="submit" isLoading={loading} disabled={loading}>
+                    <Save size={18} className="mr-2" />
+                    Salvar
+                </Button>
+            </div>
           </div>
-        </div>
+        </form>
+      </Modal>
 
-        <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" isLoading={loading} disabled={loading}>
-            <Save size={18} className="mr-2" />
-            Salvar Alterações
-          </Button>
+      {/* Logout Confirmation inside Profile Settings */}
+      <Modal isOpen={isLogoutConfirm} onClose={() => setIsLogoutConfirm(false)} title="Sair da Conta">
+        <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600">
+                <LogOut size={32} />
+            </div>
+            <div>
+                <h3 className="text-lg font-bold text-gray-800">Tem certeza?</h3>
+                <p className="text-gray-500">Você será desconectado do sistema.</p>
+            </div>
+            <div className="flex justify-center gap-4 pt-2">
+                <Button variant="secondary" onClick={() => setIsLogoutConfirm(false)}>Cancelar</Button>
+                <Button variant="danger" onClick={handleLogout}>Sim, Sair</Button>
+            </div>
         </div>
-      </form>
-    </Modal>
+      </Modal>
+    </>
   );
 };
