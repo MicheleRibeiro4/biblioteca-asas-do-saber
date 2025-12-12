@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Book, LayoutDashboard, LogOut, User, Settings, Users, ClipboardList, MessageSquare, FileText, BarChart3, Bell, Edit } from 'lucide-react';
+import { Book, LayoutDashboard, LogOut, User, Settings, Users, ClipboardList, MessageSquare, FileText, BarChart3, Bell, Edit, ArrowLeft } from 'lucide-react';
 import { Catalog } from './Catalog';
 import { StudentHome } from './student/StudentHome';
 import { LibrarianDashboard } from './librarian/LibrarianDashboard';
@@ -152,8 +152,21 @@ export const Dashboard: React.FC = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen relative">
         <div className="max-w-6xl mx-auto">
+             {/* Global Back Button */}
+             {activeTab !== 'home' && (
+               <button 
+                  onClick={() => setActiveTab('home')}
+                  className="mb-6 flex items-center gap-2 text-gray-500 hover:text-indigo-600 transition-colors font-medium group"
+               >
+                  <div className="p-1.5 rounded-full bg-white border border-gray-200 group-hover:border-indigo-200 group-hover:bg-indigo-50 transition-colors shadow-sm">
+                    <ArrowLeft size={16} />
+                  </div>
+                  Voltar para Início
+               </button>
+             )}
+
              {renderContent()}
         </div>
       </main>

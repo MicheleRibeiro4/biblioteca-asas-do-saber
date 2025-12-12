@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
 import { User, UserType } from '../../types';
@@ -187,15 +188,23 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
         } catch (err: any) { addToast('Erro: ' + err.message, 'error'); }
     };
     
-    // ... [Notifications & Migration Logic same as previous] ...
-    const sendOverdueNotification = async (user: User) => { /*...*/ };
-    const notifyAllOverdue = async () => { /*...*/ };
+    // Migration Logic
     const toggleStudentSelection = (m: string) => { const n=new Set(selectedMigrationIds); if(n.has(m))n.delete(m);else n.add(m); setSelectedMigrationIds(n); };
-    const toggleSelectAll = () => { if(selectedMigrationIds.size===studentsInSource.length)setSelectedMigrationIds(new Set());else setSelectedMigrationIds(new Set(studentsInSource.map(s=>String(s.matricula)))); };
+    
+    // NEW: Select All For Migration Modal
+    const toggleSelectAllMigration = () => {
+        if (selectedMigrationIds.size === studentsInSource.length) {
+            setSelectedMigrationIds(new Set());
+        } else {
+            setSelectedMigrationIds(new Set(studentsInSource.map(s => String(s.matricula))));
+        }
+    };
+
     const handleMigrationClick = () => { 
         if(!migrationSourceClass || !migrationTargetClass || selectedMigrationIds.size === 0) { addToast('Dados incompletos', 'error'); return; }
         setConfirmConfig({ isOpen: true, title: 'Confirmar Migração', message: `Mover ${selectedMigrationIds.size} alunos?`, confirmText: 'Migrar', variant: 'primary', onConfirm: performMigration }); 
     };
+    
     const performMigration = async () => {
         setSaving(true); try {
             const ids = Array.from(selectedMigrationIds).map(id=>String(id).trim());
@@ -300,8 +309,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
                 </div>
             </div>
 
-            {/* Include Modals (Create/Edit, Migration, Confirm) - Same logic as before but rendering omitted for brevity as it's unchanged logic-wise */}
-            {/* (Assuming you keep the modals code here as in previous version) */}
              <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser.id ? `Editar ${userType}` : `Novo ${userType}`}>
                 <form onSubmit={handleSave} className="space-y-4">
                     <Input label="Nome" value={editingUser.nome || ''} onChange={e => setEditingUser({...editingUser, nome: e.target.value})} required />
@@ -317,28 +324,61 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
                 </form>
             </Modal>
             
-            <Modal isOpen={isMigrationModalOpen} onClose={() => setIsMigrationModalOpen(false)} title="Migração">
-                 {/* ... Migration Modal Content ... */}
+            <Modal isOpen={isMigrationModalOpen} onClose={() => setIsMigrationModalOpen(false)} title="Migração em Massa">
                  <div className="space-y-4">
+                    <div className="bg-indigo-50 p-3 rounded-lg text-sm text-indigo-800 border border-indigo-100 flex gap-2">
+                        <AlertTriangle className="flex-shrink-0 w-5 h-5" />
+                        <p>Selecione a turma de origem, a de destino e marque os alunos que devem ser transferidos.</p>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
-                        <Select label="Origem" options={availableClasses.map(c => ({label: c, value: c}))} value={migrationSourceClass} onChange={e => setMigrationSourceClass(e.target.value)} />
-                        <Input label="Destino" value={migrationTargetClass} onChange={e => setMigrationTargetClass(e.target.value)} />
+                        <Select label="Turma de Origem" options={[{value: '', label: 'Selecione...'}, ...availableClasses.map(c => ({label: c, value: c}))]} value={migrationSourceClass} onChange={e => setMigrationSourceClass(e.target.value)} />
+                        <Input label="Turma de Destino" placeholder="Ex: 3A" value={migrationTargetClass} onChange={e => setMigrationTargetClass(e.target.value)} />
                     </div>
-                    <div className="border rounded h-64 overflow-y-auto p-2 bg-gray-50">
-                        {studentsInSource.map(s => (
-                            <label key={String(s.matricula)} className="flex items-center gap-2 p-2 hover:bg-white rounded cursor-pointer">
-                                <input type="checkbox" checked={selectedMigrationIds.has(String(s.matricula))} onChange={() => {const n=new Set(selectedMigrationIds); if(n.has(String(s.matricula)))n.delete(String(s.matricula)); else n.add(String(s.matricula)); setSelectedMigrationIds(n);}} />
-                                <span className="text-sm">{s.nome}</span>
-                            </label>
-                        ))}
+
+                    {studentsInSource.length > 0 && (
+                        <div className="space-y-1">
+                            <div className="flex justify-between items-center mb-1 px-1">
+                                <label className="text-sm font-medium text-gray-700">Selecione os Alunos ({studentsInSource.length}):</label>
+                                <button 
+                                    type="button" 
+                                    onClick={toggleSelectAllMigration} 
+                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors"
+                                >
+                                    {selectedMigrationIds.size === studentsInSource.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                                </button>
+                            </div>
+                            <div className="border border-gray-200 rounded-lg h-60 overflow-y-auto p-2 bg-gray-50 scrollbar-thin scrollbar-thumb-gray-300">
+                                {studentsInSource.map(s => (
+                                    <label key={String(s.matricula)} className="flex items-center gap-3 p-2 hover:bg-white rounded-md cursor-pointer transition-colors border border-transparent hover:border-gray-100 group">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={selectedMigrationIds.has(String(s.matricula))} 
+                                            onChange={() => toggleStudentSelection(String(s.matricula))}
+                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <span className={`text-sm group-hover:text-gray-900 ${selectedMigrationIds.has(String(s.matricula)) ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{s.nome}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <div className="text-right text-xs text-gray-500">
+                                {selectedMigrationIds.size} alunos selecionados para migração
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                        <Button variant="secondary" onClick={() => setIsMigrationModalOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleMigrationClick} isLoading={saving} disabled={selectedMigrationIds.size === 0}>
+                            Migrar Alunos
+                        </Button>
                     </div>
-                    <div className="flex justify-end gap-2"><Button onClick={handleMigrationClick} isLoading={saving}>Migrar</Button></div>
                  </div>
             </Modal>
 
             <Modal isOpen={confirmConfig.isOpen} onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} title={confirmConfig.title}>
                 <div className="space-y-6 text-center">
-                    <p>{confirmConfig.message}</p>
+                    <p className="text-gray-600">{confirmConfig.message}</p>
                     <div className="flex justify-center gap-4">
                         <Button variant="secondary" onClick={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}>Cancelar</Button>
                         <Button variant={confirmConfig.variant === 'danger' ? 'danger' : 'primary'} onClick={() => { confirmConfig.onConfirm(); setConfirmConfig({ ...confirmConfig, isOpen: false }); }}>{confirmConfig.confirmText || 'Confirmar'}</Button>
