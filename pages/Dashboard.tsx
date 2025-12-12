@@ -10,6 +10,7 @@ import { LoanHistory } from './student/LoanHistory';
 import { MyComments } from './student/MyComments';
 import { Notifications } from './student/Notifications';
 import { ProfileSettings } from '../components/profile/ProfileSettings';
+import { Button, Modal } from '../components/ui/Layouts';
 
 type Tab = 'home' | 'catalog' | 'history' | 'profile' | 'student-comments' | 'student-notifications' | 'admin-books' | 'admin-loans' | 'admin-users' | 'admin-reports' | 'admin-comments';
 
@@ -18,6 +19,7 @@ export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   if (!user) return null;
 
@@ -143,7 +145,10 @@ export const Dashboard: React.FC = () => {
           </nav>
 
           <div className="mt-8 pt-4 border-t border-gray-100">
-             <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg">
+             <button 
+                onClick={() => setIsLogoutConfirmOpen(true)} 
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
+             >
                 <LogOut size={20} />
                 Sair
              </button>
@@ -170,6 +175,23 @@ export const Dashboard: React.FC = () => {
              {renderContent()}
         </div>
       </main>
+
+      {/* Logout Confirmation Modal */}
+      <Modal isOpen={isLogoutConfirmOpen} onClose={() => setIsLogoutConfirmOpen(false)} title="Sair do Sistema">
+        <div className="space-y-6">
+            <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <LogOut className="text-red-600 w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800">Tem certeza que deseja sair?</h3>
+                <p className="text-gray-500 mt-2">Você precisará fazer login novamente para acessar sua conta.</p>
+            </div>
+            <div className="flex justify-center gap-4">
+                <Button variant="secondary" onClick={() => setIsLogoutConfirmOpen(false)}>Cancelar</Button>
+                <Button variant="danger" onClick={logout}>Sim, Sair</Button>
+            </div>
+        </div>
+      </Modal>
 
       {/* Profile Settings Modal */}
       <ProfileSettings 
