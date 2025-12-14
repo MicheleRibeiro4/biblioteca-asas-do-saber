@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Book, LayoutDashboard, LogOut, User, Settings, Users, ClipboardList, MessageSquare, FileText, BarChart3, Bell, Edit, ArrowLeft } from 'lucide-react';
+import { Book, LayoutDashboard, LogOut, User, Settings, Users, ClipboardList, MessageSquare, FileText, BarChart3, Bell, Edit, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { Catalog } from './Catalog';
 import { StudentHome } from './student/StudentHome';
 import { LibrarianDashboard } from './librarian/LibrarianDashboard';
@@ -20,6 +20,31 @@ export const Dashboard: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  
+  // First Login Reminder State
+  const [isPasswordReminderOpen, setIsPasswordReminderOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+        // Verifica se a senha é a padrão "1234"
+        if (user.senha === '1234') {
+            const hasSeen = localStorage.getItem(`saw_pwd_reminder_${user.id}`);
+            if (!hasSeen) {
+                setIsPasswordReminderOpen(true);
+            }
+        }
+    }
+  }, [user]);
+
+  const handleCloseReminder = () => {
+      setIsPasswordReminderOpen(false);
+      if (user) localStorage.setItem(`saw_pwd_reminder_${user.id}`, 'true');
+  };
+
+  const handleOpenSettingsFromReminder = () => {
+      handleCloseReminder();
+      setIsProfileModalOpen(true);
+  };
 
   if (!user) return null;
 
@@ -191,6 +216,27 @@ export const Dashboard: React.FC = () => {
                 <Button variant="danger" onClick={logout}>Sim, Sair</Button>
             </div>
         </div>
+      </Modal>
+
+      {/* First Login Password Reminder Modal */}
+      <Modal isOpen={isPasswordReminderOpen} onClose={() => {}} title="Segurança da Conta">
+          <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+                  <ShieldAlert size={32} />
+              </div>
+              <div>
+                  <h3 className="text-lg font-bold text-gray-800">Altere sua Senha Inicial</h3>
+                  <p className="text-gray-600 mt-2 text-sm px-4">
+                      Detectamos que você ainda está usando a senha padrão "1234". Para garantir a segurança dos seus dados, recomendamos criar uma nova senha pessoal.
+                  </p>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
+                  <Button variant="ghost" onClick={handleCloseReminder} className="text-gray-500">Lembrar depois</Button>
+                  <Button variant="warning" onClick={handleOpenSettingsFromReminder} className="bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200">
+                      Alterar Senha Agora
+                  </Button>
+              </div>
+          </div>
       </Modal>
 
       {/* Profile Settings Modal */}

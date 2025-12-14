@@ -35,8 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log(`Tentando login como [${type}] para: ${email}`);
       
-      // Usa .ilike para ignorar maiúsculas/minúsculas
-      // Usa .maybeSingle() para não estourar erro se não achar nada
       const { data, error } = await supabase
         .from(type)
         .select('*')
@@ -55,8 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, message: `E-mail não encontrado no perfil de ${type}.` };
       }
 
-      // Verificação de senha
-      // Nota: Em produção real, senhas devem ser hash (bcrypt), mas mantendo lógica legado texto puro
+      // Verificação de senha simples (texto puro conforme legado)
       if (String(data.senha).trim() !== pass.trim()) {
         console.warn('Senha incorreta');
         setLoading(false);
@@ -73,7 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         matricula: data.matricula,
         masp: data.masp,
         bio: data.bio,
-        localizacao: data.localizacao
+        localizacao: data.localizacao,
+        senha: data.senha
       };
 
       setUser(userData);

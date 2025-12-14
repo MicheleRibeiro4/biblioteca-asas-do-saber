@@ -14,6 +14,7 @@ export interface User {
   localizacao?: string;
   turno?: string; // Bibliotecario
   status?: string;
+  senha?: string;
 }
 
 export interface Book {
