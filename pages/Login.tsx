@@ -100,12 +100,17 @@ export const Login: React.FC = () => {
       setForgotLoading(true);
       try {
           // Update Logic for Aluno
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('aluno')
             .update({ senha: newResetPassword })
-            .eq('matricula', verifiedUserId);
+            .eq('matricula', verifiedUserId)
+            .select();
 
           if (error) throw error;
+          
+          if (!data || data.length === 0) {
+              throw new Error("Não foi possível atualizar a senha. Verifique se a matrícula está correta.");
+          }
 
           // Success - Close everything
           addToast("Senha alterada com sucesso! Você já pode fazer login.", 'success');

@@ -114,9 +114,27 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
         query = query.eq('id', user.id);
       }
 
-      const { error } = await query;
+      const { data, error } = await query.select(); // Add select() to check if row was hit
 
       if (error) throw error;
+      
+      // Fallback for Bibliotecario plural table if singular failed to update any row
+      if ((!data || data.length === 0) && user.tipo === 'bibliotecario') {
+           const { error: pluralError, data: pluralData } = await supabase
+                .from('bibliotecarios')
+                .update(updates)
+                .eq('id', user.id)
+                .select();
+           
+           if (pluralError) throw pluralError;
+           if (!pluralData || pluralData.length === 0) {
+               // Still failed
+               throw new Error("Não foi possível atualizar o perfil. Tabela não encontrada ou permissão negada.");
+           }
+      } else if (!data || data.length === 0) {
+           // Failed for other types (Student/Teacher) - likely RLS or ID mismatch
+            throw new Error("Não foi possível atualizar o perfil. Nenhuma alteração realizada (Verifique permissões).");
+      }
 
       // Update Local State
       updateUser({

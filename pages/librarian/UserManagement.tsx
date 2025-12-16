@@ -133,6 +133,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
         e.preventDefault(); setSaving(true);
         try {
             const userData = { ...editingUser }; delete userData.tipo; 
+            
+            // CORRECTION: Prevent overwriting password with empty string on edit
+            if (editingUser.id && userData.senha === '') {
+                delete userData.senha;
+            }
+
             if (!(userData as any).status) (userData as any).status = 'ativo';
             let error;
             if (editingUser.id) {
@@ -314,7 +320,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
                     <Input label="Email" value={editingUser.email || ''} onChange={e => setEditingUser({...editingUser, email: e.target.value})} required />
                     {userType === 'aluno' && <div className="grid grid-cols-2 gap-4"><Input label="Matrícula" value={editingUser.matricula || ''} onChange={e => setEditingUser({...editingUser, matricula: e.target.value})} disabled={!!editingUser.id} /><Input label="Turma" value={editingUser.turma || ''} onChange={e => setEditingUser({...editingUser, turma: e.target.value})} /></div>}
                     {userType === 'professor' && <Input label="Turma" value={editingUser.turma || ''} onChange={e => setEditingUser({...editingUser, turma: e.target.value})} />}
-                    <Input label="Senha" type="password" value={editingUser.senha || ''} onChange={e => setEditingUser({...editingUser, senha: e.target.value})} />
+                    <Input 
+                        label="Senha" 
+                        type="password" 
+                        value={editingUser.senha || ''} 
+                        onChange={e => setEditingUser({...editingUser, senha: e.target.value})} 
+                        placeholder={editingUser.id ? "Deixe em branco para não alterar" : "Obrigatório"}
+                    />
                     <div className="flex justify-end gap-2 mt-4">
                          {editingUser.id && <Button type="button" variant="ghost" className="text-red-500 mr-auto" onClick={() => handleDeleteClick(editingUser as User)}>Excluir</Button>}
                          <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
