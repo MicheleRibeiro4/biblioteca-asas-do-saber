@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
 import { User, UserType } from '../../types';
 import { Button, Input, Modal, Select, Badge } from '../../components/ui/Layouts';
-import { Plus, Edit2, Trash2, Search, UserCheck, ArrowRightLeft, Power, CheckSquare, Filter, X, AlertTriangle, User as UserIcon, GraduationCap, Briefcase, BookOpenCheck, Archive } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, UserCheck, ArrowRightLeft, Power, Filter, X, AlertTriangle, GraduationCap, Briefcase, BookOpenCheck, Archive } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
 interface UserManagementProps { showOverdueOnly?: boolean; }

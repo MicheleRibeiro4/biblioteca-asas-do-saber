@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Book, LayoutDashboard, LogOut, Settings, Users, ClipboardList, MessageSquare, BarChart3, Bell, Edit, ArrowLeft, Menu, X } from 'lucide-react';
+import { Book, LayoutDashboard, LogOut, Settings, Users, ClipboardList, MessageSquare, BarChart3, Bell, Edit, ArrowLeft, Menu, X, Mail } from 'lucide-react';
 import { Catalog } from './Catalog';
 import { StudentHome } from './student/StudentHome';
 import { LibrarianDashboard } from './librarian/LibrarianDashboard';
@@ -12,7 +12,7 @@ import { Notifications } from './student/Notifications';
 import { ProfileSettings } from '../components/profile/ProfileSettings';
 import { Button, Modal } from '../components/ui/Layouts';
 
-type Tab = 'home' | 'catalog' | 'history' | 'profile' | 'student-comments' | 'student-notifications' | 'admin-books' | 'admin-loans' | 'admin-users' | 'admin-reports' | 'admin-comments';
+type Tab = 'home' | 'catalog' | 'history' | 'profile' | 'student-comments' | 'student-notifications' | 'admin-books' | 'admin-loans' | 'admin-users' | 'admin-reports' | 'admin-comments' | 'admin-emails';
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -58,6 +58,8 @@ export const Dashboard: React.FC = () => {
          return <LibrarianDashboard initialTab="comments" />;
       case 'admin-reports':
          return <LibrarianDashboard initialTab="reports" />;
+      case 'admin-emails':
+         return <LibrarianDashboard initialTab="emails" />;
       default:
         return <StudentHome onChangeTab={setActiveTab} />;
     }
@@ -85,6 +87,7 @@ export const Dashboard: React.FC = () => {
         { id: 'admin-loans', label: 'Empréstimos', icon: <ClipboardList size={20} /> },
         { id: 'admin-comments', label: 'Comentários', icon: <MessageSquare size={20} /> },
         { id: 'admin-users', label: 'Usuários', icon: <Users size={20} /> },
+        { id: 'admin-emails', label: 'Notificações', icon: <Mail size={20} /> },
         { id: 'admin-reports', label: 'Relatórios', icon: <BarChart3 size={20} /> },
       ];
     }

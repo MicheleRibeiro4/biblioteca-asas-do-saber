@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { X, Loader2 } from 'lucide-react';
 
@@ -138,9 +137,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  hideClose?: boolean;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, hideClose = false }) => {
   if (!isOpen) return null;
 
   return (
@@ -148,9 +148,11 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-500 rounded-full p-1 hover:bg-gray-100 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          {!hideClose && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-500 rounded-full p-1 hover:bg-gray-100 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
         <div className="p-6 max-h-[80vh] overflow-y-auto">
           {children}

@@ -23,10 +23,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
     
-    // Tempo de exibição: 5 segundos
+    // Tempo de exibição: 4 segundos (um pouco mais rápido para UI não bloqueante)
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000); 
+    }, 4000); 
   }, []);
 
   const removeToast = (id: number) => {
@@ -36,58 +36,54 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      {/* Container Centralizado na Tela */}
-      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center pointer-events-none p-4">
+      
+      {/* Container de Notificações - Canto Superior Direito */}
+      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
         
-        {/* Backdrop/Fundo Escuro para focar a atenção (se houver toasts) */}
-        {toasts.length > 0 && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto" />
-        )}
-
         {/* Lista de Notificações */}
-        <div className="z-10 flex flex-col gap-4 items-center w-full max-w-md pointer-events-none">
-            {toasts.map((toast) => (
-            <div
-                key={toast.id}
-                className={`pointer-events-auto flex items-center w-full p-6 space-x-4 bg-white rounded-2xl shadow-2xl border-l-8 animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 transform transition-all ${
-                toast.type === 'success' ? 'border-green-500 ring-4 ring-green-500/20' : 
-                toast.type === 'error' ? 'border-red-500 ring-4 ring-red-500/20' : 
-                toast.type === 'warning' ? 'border-amber-500 ring-4 ring-amber-500/20' :
-                'border-blue-500 ring-4 ring-blue-500/20'
-                }`}
-                role="alert"
-            >
-                <div className={`flex-shrink-0 p-3 rounded-full ${
-                toast.type === 'success' ? 'bg-green-100 text-green-600' : 
-                toast.type === 'error' ? 'bg-red-100 text-red-600' : 
-                toast.type === 'warning' ? 'bg-amber-100 text-amber-600' :
-                'bg-blue-100 text-blue-600'
-                }`}>
-                {toast.type === 'success' && <CheckCircle className="w-8 h-8" />}
-                {toast.type === 'error' && <AlertCircle className="w-8 h-8" />}
-                {toast.type === 'warning' && <AlertTriangle className="w-8 h-8" />}
-                {toast.type === 'info' && <Info className="w-8 h-8" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className={`text-xl font-bold mb-1 ${
-                        toast.type === 'success' ? 'text-green-800' : 
-                        toast.type === 'error' ? 'text-red-800' : 
-                        toast.type === 'warning' ? 'text-amber-800' :
-                        'text-blue-800'
-                    }`}>
-                        {toast.type === 'success' ? 'Sucesso!' : toast.type === 'error' ? 'Atenção!' : toast.type === 'warning' ? 'Aviso' : 'Informação'}
-                    </p>
-                    <p className="text-base font-medium text-gray-700 leading-snug">{toast.message}</p>
-                </div>
-                <button
-                onClick={() => removeToast(toast.id)}
-                className="flex-shrink-0 bg-gray-50 text-gray-400 hover:text-gray-900 rounded-full p-2 hover:bg-gray-200 transition-colors"
-                >
-                <X className="w-6 h-6" />
-                </button>
+        {toasts.map((toast) => (
+        <div
+            key={toast.id}
+            className={`pointer-events-auto flex items-start w-full p-4 gap-3 bg-white rounded-xl shadow-lg border-l-4 animate-in slide-in-from-right-10 fade-in duration-300 transform transition-all hover:scale-[1.02] ${
+            toast.type === 'success' ? 'border-green-500 shadow-green-100' : 
+            toast.type === 'error' ? 'border-red-500 shadow-red-100' : 
+            toast.type === 'warning' ? 'border-amber-500 shadow-amber-100' :
+            'border-blue-500 shadow-blue-100'
+            }`}
+            role="alert"
+        >
+            <div className={`flex-shrink-0 mt-0.5 ${
+            toast.type === 'success' ? 'text-green-600' : 
+            toast.type === 'error' ? 'text-red-600' : 
+            toast.type === 'warning' ? 'text-amber-600' :
+            'text-blue-600'
+            }`}>
+            {toast.type === 'success' && <CheckCircle size={20} />}
+            {toast.type === 'error' && <AlertCircle size={20} />}
+            {toast.type === 'warning' && <AlertTriangle size={20} />}
+            {toast.type === 'info' && <Info size={20} />}
             </div>
-            ))}
+            
+            <div className="flex-1 min-w-0">
+                <p className={`text-sm font-bold ${
+                    toast.type === 'success' ? 'text-green-800' : 
+                    toast.type === 'error' ? 'text-red-800' : 
+                    toast.type === 'warning' ? 'text-amber-800' :
+                    'text-blue-800'
+                }`}>
+                    {toast.type === 'success' ? 'Sucesso' : toast.type === 'error' ? 'Erro' : toast.type === 'warning' ? 'Atenção' : 'Info'}
+                </p>
+                <p className="text-sm text-gray-600 mt-0.5 leading-tight break-words">{toast.message}</p>
+            </div>
+            
+            <button
+            onClick={() => removeToast(toast.id)}
+            className="flex-shrink-0 text-gray-400 hover:text-gray-900 transition-colors -mt-1 -mr-1 p-1 rounded-full hover:bg-gray-100"
+            >
+            <X size={16} />
+            </button>
         </div>
+        ))}
       </div>
     </ToastContext.Provider>
   );
