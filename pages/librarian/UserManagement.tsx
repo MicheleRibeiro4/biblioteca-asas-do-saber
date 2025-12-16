@@ -244,10 +244,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
         // Create mailto link
         const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         
-        // Open default mail client
-        window.open(mailtoLink, '_blank');
+        // CORRECTION: Use window.location.href instead of window.open to avoid pop-up blockers
+        // and ensure the default mail client opens reliably.
+        window.location.href = mailtoLink;
         
-        addToast('Cliente de e-mail aberto!', 'success');
+        addToast('Abrindo aplicativo de e-mail...', 'success');
         setNotificationModal({ isOpen: false, user: null });
     };
 
@@ -255,32 +256,34 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
     const openModal = (user?: User) => { if (user) setEditingUser({ ...user, senha: '' }); else setEditingUser({ tipo: userType }); setIsModalOpen(true); };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-300 relative">
+        <div className="space-y-6 animate-in fade-in duration-300 relative max-w-[100vw] overflow-hidden">
             {/* Bulk Action Bar - Floating */}
             {selectedUsers.size > 0 && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-6 animate-in slide-in-from-bottom-5">
-                    <span className="font-medium">{selectedUsers.size} selecionado(s)</span>
-                    <div className="h-6 w-px bg-gray-700"></div>
-                    <button onClick={handleBulkArchive} className="flex items-center gap-2 hover:text-indigo-400 transition-colors">
-                        <Archive size={18} /> Arquivar
-                    </button>
-                    <button onClick={handleBulkDelete} className="flex items-center gap-2 hover:text-red-400 transition-colors">
-                        <Trash2 size={18} /> Excluir
-                    </button>
-                    <button onClick={() => setSelectedUsers(new Set())} className="ml-4 p-1 hover:bg-gray-800 rounded-full"><X size={16}/></button>
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-6 animate-in slide-in-from-bottom-5 w-[90%] md:w-auto justify-between md:justify-start">
+                    <span className="font-medium whitespace-nowrap">{selectedUsers.size} sel.</span>
+                    <div className="flex items-center gap-4">
+                        <button onClick={handleBulkArchive} className="flex items-center gap-2 hover:text-indigo-400 transition-colors">
+                            <Archive size={18} /> <span className="hidden sm:inline">Arquivar</span>
+                        </button>
+                        <button onClick={handleBulkDelete} className="flex items-center gap-2 hover:text-red-400 transition-colors">
+                            <Trash2 size={18} /> <span className="hidden sm:inline">Excluir</span>
+                        </button>
+                        <button onClick={() => setSelectedUsers(new Set())} className="p-1 hover:bg-gray-800 rounded-full"><X size={16}/></button>
+                    </div>
                 </div>
             )}
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><UserCheck className="text-indigo-600" /> Gerenciamento de Usuários</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><UserCheck className="text-indigo-600" /> <span className="hidden sm:inline">Gerenciamento de</span> Usuários</h2>
                     <p className="text-gray-500 text-sm mt-1">Administre alunos, professores e bibliotecários.</p>
                 </div>
-                <div className="bg-white p-1 rounded-xl border border-gray-200 shadow-sm flex items-center">
+                <div className="bg-white p-1 rounded-xl border border-gray-200 shadow-sm flex items-center w-full md:w-auto overflow-x-auto">
                     {(['aluno', 'professor', 'bibliotecario'] as UserType[]).map((type) => (
-                        <button key={type} onClick={() => { setUserType(type); setIsOverdueFilter(false); }} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${userType === type ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>
+                        <button key={type} onClick={() => { setUserType(type); setIsOverdueFilter(false); }} className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${userType === type ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>
                             {type === 'aluno' && <GraduationCap size={16} />} {type === 'professor' && <BookOpenCheck size={16} />} {type === 'bibliotecario' && <Briefcase size={16} />}
-                            <span className="capitalize">{type === 'bibliotecario' ? 'Bibliotecários' : type === 'professor' ? 'Professores' : 'Alunos'}</span>
+                            <span className="capitalize hidden sm:inline">{type === 'bibliotecario' ? 'Bibliotecários' : type === 'professor' ? 'Professores' : 'Alunos'}</span>
+                            <span className="capitalize sm:hidden">{type.slice(0,4)}...</span>
                         </button>
                     ))}
                 </div>
@@ -293,8 +296,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
                     <input type="text" placeholder={`Buscar ${userType}...`} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
                 <div className="flex gap-2 w-full lg:w-auto justify-end">
-                    {userType === 'aluno' && <Button variant="outline" onClick={() => setIsMigrationModalOpen(true)}><ArrowRightLeft size={18} className="mr-2" /> Migrar Turmas</Button>}
-                    <Button onClick={() => openModal()} className="shadow-md shadow-indigo-100"><Plus size={18} className="mr-2" /> Novo Usuário</Button>
+                    {userType === 'aluno' && <Button variant="outline" onClick={() => setIsMigrationModalOpen(true)} className="flex-1 lg:flex-none justify-center"><ArrowRightLeft size={18} className="mr-2" /> Migrar</Button>}
+                    <Button onClick={() => openModal()} className="shadow-md shadow-indigo-100 flex-1 lg:flex-none justify-center"><Plus size={18} className="mr-2" /> Novo</Button>
                 </div>
             </div>
 

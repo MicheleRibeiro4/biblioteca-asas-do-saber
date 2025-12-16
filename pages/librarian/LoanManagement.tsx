@@ -276,17 +276,28 @@ export const LoanManagement: React.FC = () => {
     const getStatusVariant = (loan: Loan) => {
         const isOverdue = loan.status === 'aprovado' && !loan.data_devolucao_real && new Date(loan.devolutiva) < new Date();
         if (isOverdue) return 'danger';
-        if (loan.status === 'aprovado') return 'success';
-        if (loan.status === 'solicitado') return 'warning';
-        if (loan.status === 'rejeitado') return 'danger';
-        return 'info'; // concluido
+        
+        // Strict Visual Mapping
+        switch(loan.status) {
+            case 'aprovado': return 'info'; // Blue for Active
+            case 'solicitado': return 'warning'; // Yellow for Pending
+            case 'rejeitado': return 'danger'; // Red for Rejected
+            case 'concluido': return 'success'; // Green for Completed
+            default: return 'default';
+        }
     };
 
     const getDisplayStatus = (loan: Loan) => {
         const isOverdue = loan.status === 'aprovado' && !loan.data_devolucao_real && new Date(loan.devolutiva) < new Date();
         if (isOverdue) return 'ATRASADO';
-        if (loan.status === 'aprovado') return 'LENDO'; // Alterado de EM MÃOS para LENDO
-        return loan.status.toUpperCase();
+        
+        switch(loan.status) {
+            case 'aprovado': return 'LENDO';
+            case 'solicitado': return 'SOLICITADO';
+            case 'rejeitado': return 'REJEITADO';
+            case 'concluido': return 'DEVOLVIDO'; // Clearly indicates finished
+            default: return loan.status.toUpperCase();
+        }
     };
 
     // Filter Logic
@@ -448,6 +459,56 @@ export const LoanManagement: React.FC = () => {
                         </div>
                     </div>
                 </>
+            )}
+
+            {view === 'waitlist' && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                     {waitlist.length === 0 ? (
+                        <div className="p-12 text-center text-gray-500">
+                            <List size={48} className="mx-auto mb-4 text-gray-300" />
+                            <p>A fila de espera está vazia.</p>
+                        </div>
+                     ) : (
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Posição</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Aluno</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Livro Aguardado</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Data Entrada</th>
+                                    <th className="px-6 py-3 text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {waitlist.map((item, idx) => (
+                                    <tr key={item.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-bold text-gray-700">#{idx + 1}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-medium">{item.aluno?.nome}</div>
+                                            <div className="text-xs text-gray-500">{item.matricula_aluno} • {item.aluno?.turma}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-12 w-9 bg-gray-200 rounded flex-shrink-0 overflow-hidden border border-gray-200">
+                                                    {item.livros?.capa_url ? (
+                                                        <img src={item.livros.capa_url} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <BookOpen size={14} className="m-auto mt-4 text-gray-400"/>
+                                                    )}
+                                                </div>
+                                                <div className="text-sm font-medium text-indigo-600">{item.livros?.titulo}</div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500">{new Date(item.data_entrada).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Button size="sm" variant="danger" onClick={() => removeFromWaitlist(item.id)}>Remover</Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                     )}
+                </div>
             )}
 
             {/* Manual Loan Modal */}

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext'; // Import Toast
 import { supabase } from '../services/supabase';
 import { UserType } from '../types';
 import { BookOpen, GraduationCap, BookOpenCheck, HelpCircle, Lock, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
@@ -8,6 +9,7 @@ import { Button, Input, Modal } from '../components/ui/Layouts';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
+  const { addToast } = useToast(); // Hook Toast
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedType, setSelectedType] = useState<UserType>('aluno');
@@ -42,8 +44,9 @@ export const Login: React.FC = () => {
     const result = await login(email.trim(), password.trim(), selectedType);
     
     if (!result.success) {
-      setError(result.message || 'Credenciais inválidas. Verifique e tente novamente.');
-      // Shake animation effect could be added here via CSS class if needed
+      const msg = result.message || 'Credenciais inválidas. Verifique e tente novamente.';
+      setError(msg);
+      addToast(msg, 'error'); // Dispara o popup no meio da tela
     }
     setIsSubmitting(false);
   };
@@ -75,6 +78,7 @@ export const Login: React.FC = () => {
         setForgotStep(2);
     } catch (err: any) {
         setForgotError(err.message || "Dados incorretos.");
+        addToast(err.message || "Dados incorretos", 'error');
     } finally {
         setForgotLoading(false);
     }
@@ -104,11 +108,12 @@ export const Login: React.FC = () => {
           if (error) throw error;
 
           // Success - Close everything
-          alert("Senha alterada com sucesso! Você já pode fazer login.");
+          addToast("Senha alterada com sucesso! Você já pode fazer login.", 'success');
           closeForgotModal();
 
       } catch (err: any) {
           setForgotError("Erro ao atualizar senha: " + err.message);
+          addToast("Erro ao atualizar senha", 'error');
       } finally {
           setForgotLoading(false);
       }
@@ -136,28 +141,28 @@ export const Login: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-700 p-4 relative overflow-hidden">
       <div className="absolute inset-0 w-full h-full opacity-10 pointer-events-none bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]"></div>
       
-      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md relative z-10 border border-white/20">
-        <div className="text-center mb-8">
+      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-6 md:p-8 w-full max-w-md relative z-10 border border-white/20">
+        <div className="text-center mb-6 md:mb-8">
            <div className="flex justify-center mb-6">
              <img 
                 src="https://snbzmggzcnvpymabssmg.supabase.co/storage/v1/object/public/Logo/logo%20biblioteca.png" 
                 alt="Logo Biblioteca" 
-                className="h-40 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
+                className="h-32 md:h-40 w-auto object-contain drop-shadow-md hover:scale-105 transition-transform duration-300"
              />
            </div>
-           <h1 className="text-2xl font-bold text-gray-800">Biblioteca Asas do Saber</h1>
-           <p className="text-indigo-600 mt-2 font-medium">A leitura dá asas à imaginação!</p>
+           <h1 className="text-xl md:text-2xl font-bold text-gray-800">Biblioteca Asas do Saber</h1>
+           <p className="text-indigo-600 mt-2 font-medium text-sm md:text-base">A leitura dá asas à imaginação!</p>
         </div>
 
         <div className="mb-6">
           <p className="text-sm font-semibold text-gray-600 mb-3 text-center">Selecione seu perfil:</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 md:gap-3">
             {types.map((type) => (
               <button
                 key={type.id}
                 type="button"
                 onClick={() => { setSelectedType(type.id); setError(''); }}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ${
+                className={`flex flex-col items-center justify-center p-2 md:p-3 rounded-xl border transition-all duration-200 ${
                   selectedType === type.id
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md transform scale-105 ring-2 ring-indigo-200'
                     : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-white hover:border-gray-300'
@@ -166,7 +171,7 @@ export const Login: React.FC = () => {
                 <div className={`mb-1 ${selectedType === type.id ? 'text-indigo-600' : 'text-gray-400'}`}>
                     {type.icon}
                 </div>
-                <span className="text-xs font-medium">{type.label}</span>
+                <span className="text-[10px] md:text-xs font-medium">{type.label}</span>
               </button>
             ))}
           </div>

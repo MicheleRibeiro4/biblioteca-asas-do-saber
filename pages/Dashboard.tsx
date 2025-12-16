@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Book, LayoutDashboard, LogOut, Settings, Users, ClipboardList, MessageSquare, BarChart3, Bell, Edit, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Book, LayoutDashboard, LogOut, Settings, Users, ClipboardList, MessageSquare, BarChart3, Bell, Edit, ArrowLeft, Menu, X } from 'lucide-react';
 import { Catalog } from './Catalog';
 import { StudentHome } from './student/StudentHome';
 import { LibrarianDashboard } from './librarian/LibrarianDashboard';
@@ -20,31 +20,15 @@ export const Dashboard: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
-  
-  // First Login Reminder State
-  const [isPasswordReminderOpen, setIsPasswordReminderOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
-        // Verifica se a senha é a padrão "1234"
+        // Verifica se a senha é a padrão "1234". Se for, força a troca imediatamente.
         if (user.senha === '1234') {
-            const hasSeen = localStorage.getItem(`saw_pwd_reminder_${user.id}`);
-            if (!hasSeen) {
-                setIsPasswordReminderOpen(true);
-            }
+            setIsProfileModalOpen(true);
         }
     }
   }, [user]);
-
-  const handleCloseReminder = () => {
-      setIsPasswordReminderOpen(false);
-      if (user) localStorage.setItem(`saw_pwd_reminder_${user.id}`, 'true');
-  };
-
-  const handleOpenSettingsFromReminder = () => {
-      handleCloseReminder();
-      setIsProfileModalOpen(true);
-  };
 
   if (!user) return null;
 
@@ -113,32 +97,47 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-      {/* Sidebar / Mobile Header */}
-      <aside className="bg-white border-r border-gray-200 md:w-64 flex-shrink-0 z-30">
-        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row relative">
+      
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden animate-in fade-in duration-200"
+            onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Mobile: Drawer / Desktop: Static */}
+      <aside 
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col ${
+            isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+        }`}
+      >
+        {/* Header da Sidebar */}
+        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2 font-bold text-indigo-600">
             <img 
               src="https://snbzmggzcnvpymabssmg.supabase.co/storage/v1/object/public/Logo/logo%20biblioteca.png" 
               alt="Logo Asas do Saber" 
-              className="h-10 w-auto object-contain"
+              className="h-8 w-auto object-contain"
             />
-            <span className="md:inline hidden text-sm font-bold text-gray-800">Asas do Saber</span>
+            <span className="text-sm font-bold text-gray-800">Asas do Saber</span>
           </div>
-          <button className="md:hidden text-gray-500" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-            <Settings />
+          {/* Close Button Mobile */}
+          <button className="md:hidden text-gray-500 hover:text-gray-900" onClick={() => setIsMobileMenuOpen(false)}>
+            <X size={24} />
           </button>
         </div>
 
-        <div className={`md:block ${isMobileMenuOpen ? 'block' : 'hidden'} p-4`}>
-          
+        {/* Content da Sidebar */}
+        <div className="p-4 flex-1 overflow-y-auto">
           {/* User Profile Trigger */}
           <div 
             onClick={() => setIsProfileModalOpen(true)}
             className="flex items-center gap-3 mb-6 p-3 bg-indigo-50 rounded-xl cursor-pointer hover:bg-indigo-100 transition-colors group relative"
             title="Editar Perfil"
           >
-             <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-bold overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300">
+             <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-bold overflow-hidden border-2 border-indigo-100 group-hover:border-indigo-300 flex-shrink-0">
                 {user.foto_perfil_url ? (
                     <img src={user.foto_perfil_url} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -147,7 +146,7 @@ export const Dashboard: React.FC = () => {
              </div>
              <div className="flex-1 min-w-0">
                  <p className="text-sm font-semibold text-gray-900 truncate">{user.nome}</p>
-                 <p className="text-xs text-gray-500 capitalize">{user.tipo}</p>
+                 <p className="text-xs text-gray-500 capitalize truncate">{user.tipo}</p>
              </div>
              <Edit size={14} className="text-indigo-400 opacity-0 group-hover:opacity-100 absolute right-2 top-2" />
           </div>
@@ -168,36 +167,50 @@ export const Dashboard: React.FC = () => {
               </button>
             ))}
           </nav>
+        </div>
 
-          <div className="mt-8 pt-4 border-t border-gray-100">
+        {/* Footer da Sidebar */}
+        <div className="p-4 border-t border-gray-100 flex-shrink-0">
              <button 
                 onClick={() => setIsLogoutConfirmOpen(true)} 
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
              >
                 <LogOut size={20} />
                 Sair
              </button>
-          </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen relative">
-        <div className="max-w-6xl mx-auto">
-             {/* Global Back Button */}
-             {activeTab !== 'home' && (
-               <button 
-                  onClick={() => setActiveTab('home')}
-                  className="mb-6 flex items-center gap-2 text-gray-500 hover:text-indigo-600 transition-colors font-medium group"
-               >
-                  <div className="p-1.5 rounded-full bg-white border border-gray-200 group-hover:border-indigo-200 group-hover:bg-indigo-50 transition-colors shadow-sm">
-                    <ArrowLeft size={16} />
-                  </div>
-                  Voltar para Início
-               </button>
-             )}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden w-full">
+        {/* Mobile Header Bar */}
+        <header className="md:hidden bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 z-30 flex-shrink-0">
+             <div className="flex items-center gap-2">
+                 <img src="https://snbzmggzcnvpymabssmg.supabase.co/storage/v1/object/public/Logo/logo%20biblioteca.png" alt="Logo" className="h-8 w-auto"/>
+                 <span className="font-bold text-gray-800 text-sm">Asas do Saber</span>
+             </div>
+             <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                 <Menu size={24} />
+             </button>
+        </header>
 
-             {renderContent()}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth relative w-full">
+            <div className="max-w-6xl mx-auto w-full">
+                {/* Global Back Button */}
+                {activeTab !== 'home' && (
+                <button 
+                    onClick={() => setActiveTab('home')}
+                    className="mb-6 flex items-center gap-2 text-gray-500 hover:text-indigo-600 transition-colors font-medium group"
+                >
+                    <div className="p-1.5 rounded-full bg-white border border-gray-200 group-hover:border-indigo-200 group-hover:bg-indigo-50 transition-colors shadow-sm">
+                        <ArrowLeft size={16} />
+                    </div>
+                    Voltar para Início
+                </button>
+                )}
+
+                {renderContent()}
+            </div>
         </div>
       </main>
 
@@ -218,28 +231,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </Modal>
 
-      {/* First Login Password Reminder Modal */}
-      <Modal isOpen={isPasswordReminderOpen} onClose={() => {}} title="Segurança da Conta">
-          <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
-                  <ShieldAlert size={32} />
-              </div>
-              <div>
-                  <h3 className="text-lg font-bold text-gray-800">Altere sua Senha Inicial</h3>
-                  <p className="text-gray-600 mt-2 text-sm px-4">
-                      Detectamos que você ainda está usando a senha padrão "1234". Para garantir a segurança dos seus dados, recomendamos criar uma nova senha pessoal.
-                  </p>
-              </div>
-              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
-                  <Button variant="ghost" onClick={handleCloseReminder} className="text-gray-500">Lembrar depois</Button>
-                  <Button variant="warning" onClick={handleOpenSettingsFromReminder} className="bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200">
-                      Alterar Senha Agora
-                  </Button>
-              </div>
-          </div>
-      </Modal>
-
-      {/* Profile Settings Modal */}
+      {/* Profile Settings Modal (Handles Mandatory Password Change) */}
       <ProfileSettings 
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)} 

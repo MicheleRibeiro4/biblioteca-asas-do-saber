@@ -221,6 +221,21 @@ const ReportsView: React.FC<{ addToast: any }> = ({ addToast }) => {
         window.print();
     };
 
+    // Helper para as cores do relatório
+    const getStatusInfo = (item: any) => {
+        const isOverdue = item.status === 'aprovado' && !item.data_devolucao_real && new Date(item.devolutiva) < new Date();
+        
+        if (isOverdue) return { label: 'ATRASADO', variant: 'danger' as const };
+        
+        switch (item.status) {
+            case 'aprovado': return { label: 'LENDO', variant: 'success' as const }; // Verde para ativo
+            case 'concluido': return { label: 'DEVOLVIDO', variant: 'info' as const }; // Azul para histórico
+            case 'rejeitado': return { label: 'REJEITADO', variant: 'danger' as const }; // Vermelho
+            case 'solicitado': return { label: 'PENDENTE', variant: 'warning' as const }; // Amarelo
+            default: return { label: item.status.toUpperCase(), variant: 'default' as const };
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl shadow-sm border items-end print:hidden">
@@ -265,19 +280,22 @@ const ReportsView: React.FC<{ addToast: any }> = ({ addToast }) => {
                     <tbody className="divide-y divide-gray-100">
                         {loading ? <tr><td colSpan={5} className="p-4 text-center">Carregando...</td></tr> : 
                          reportData.length === 0 ? <tr><td colSpan={5} className="p-4 text-center">Sem dados.</td></tr> :
-                         reportData.map((item) => (
-                            <tr key={item.id} className="hover:bg-gray-50 print:hover:bg-white">
-                                <td className="px-6 py-3">{new Date(item.data_emprestimo).toLocaleDateString()}</td>
-                                <td className="px-6 py-3">{item.aluno?.nome}</td>
-                                <td className="px-6 py-3">{item.aluno?.turma}</td>
-                                <td className="px-6 py-3">{item.livros?.titulo}</td>
-                                <td className="px-6 py-3 text-right">
-                                    <Badge variant={item.status === 'aprovado' && new Date(item.devolutiva) < new Date() && !item.data_devolucao_real ? 'danger' : 'success'}>
-                                        {item.status.toUpperCase()}
-                                    </Badge>
-                                </td>
-                            </tr>
-                        ))}
+                         reportData.map((item) => {
+                            const statusInfo = getStatusInfo(item);
+                            return (
+                                <tr key={item.id} className="hover:bg-gray-50 print:hover:bg-white">
+                                    <td className="px-6 py-3">{new Date(item.data_emprestimo).toLocaleDateString()}</td>
+                                    <td className="px-6 py-3">{item.aluno?.nome}</td>
+                                    <td className="px-6 py-3">{item.aluno?.turma}</td>
+                                    <td className="px-6 py-3">{item.livros?.titulo}</td>
+                                    <td className="px-6 py-3 text-right">
+                                        <Badge variant={statusInfo.variant}>
+                                            {statusInfo.label}
+                                        </Badge>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
                 
