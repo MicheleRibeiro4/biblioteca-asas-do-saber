@@ -32,66 +32,131 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string, type: UserType): Promise<{ success: boolean; message?: string }> => {
     setLoading(true);
-    try {
-      console.log(`Tentando login como [${type}] para: ${email}`);
-      
-      const { data, error } = await supabase
-        .from(type)
-        .select('*')
-        .ilike('email', email.trim()) 
-        .maybeSingle();
+    const cleanEmail = email.trim();
+    const cleanPass = pass.trim();
+    let finalUser: any = null;
 
-      if (error) {
-        console.error('Erro Supabase:', error);
-        setLoading(false);
+    try {
+      console.log(`[Auth] Iniciando login para: ${cleanEmail} como ${type}`);
+
+      // -----------------------------------------------------------------------
+      // ESTRATÉGIA 1: SUPABASE AUTH (Prioritária - RLS Friendly)
+      // -----------------------------------------------------------------------
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: cleanPass
+      });
+
+      if (!authError && authData.user) {
+        console.log('[Auth] Autenticação Supabase OK. Buscando perfil...');
         
-        // Tratamento específico para erro de recursão infinita (RLS Policy Loop)
-        if (error.code === '42P17') {
-             return { success: false, message: 'Erro Crítico (Recursão Infinita): Peça ao administrador para corrigir as Políticas RLS no banco de dados.' };
+        const { data: profileData } = await supabase
+          .from(type)
+          .select('*')
+          .or(`email.ilike.${cleanEmail},user_id.eq.${authData.user.id}`)
+          .limit(1)
+          .maybeSingle();
+
+        if (profileData) {
+          finalUser = profileData;
+        } else {
+            // Fallback plural
+            if (type === 'bibliotecario') {
+                const { data: pluralData } = await supabase
+                    .from('bibliotecarios')
+                    .select('*')
+                    .or(`email.ilike.${cleanEmail},user_id.eq.${authData.user.id}`)
+                    .limit(1)
+                    .maybeSingle();
+                if (pluralData) finalUser = pluralData;
+            }
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // ESTRATÉGIA 2: LEGADO / TEXTO PURO (Fallback)
+      // -----------------------------------------------------------------------
+      if (!finalUser) {
+        console.log('[Auth] Auth falhou ou perfil não encontrado. Tentando método Legado (Tabela Direta)...');
+        
+        let { data: tableData, error: tableError } = await supabase
+          .from(type)
+          .select('*')
+          .ilike('email', cleanEmail)
+          .limit(1)
+          .maybeSingle();
+
+        // Fallback plural para legado
+        if (!tableData && type === 'bibliotecario') {
+             const { data: pluralData } = await supabase
+                .from('bibliotecarios')
+                .select('*')
+                .ilike('email', cleanEmail)
+                .limit(1)
+                .maybeSingle();
+             if (pluralData) tableData = pluralData;
         }
 
-        return { success: false, message: 'Erro de conexão com o banco de dados.' };
+        if (tableData) {
+            const dbPass = tableData.senha ? String(tableData.senha).trim() : '';
+            if (dbPass === cleanPass) {
+                finalUser = tableData;
+            } else {
+                setLoading(false);
+                return { success: false, message: 'Senha incorreta.' };
+            }
+        } else {
+            // DIAGNÓSTICO DE RLS
+            // Se tableError for null, mas tableData também for null, é 99% chance de ser RLS bloqueando.
+            if (!tableError) {
+                console.warn(`[Auth] ALERTA: A busca na tabela '${type}' retornou vazio sem erro explícito. Isso geralmente indica que o RLS (Row Level Security) está bloqueando a leitura pública. Execute o script db_fix_rls.sql no Supabase.`);
+            }
+
+            console.warn('[Auth] Falha total: Email não encontrado em nenhuma estratégia.');
+            setLoading(false);
+            return { 
+                success: false, 
+                message: `E-mail não encontrado no perfil de ${type === 'bibliotecario' ? 'Bibliotecário' : 'Aluno/Professor'}. Se você é o administrador, verifique as políticas RLS (Execute db_fix_rls.sql).` 
+            };
+        }
       }
 
-      if (!data) {
-        console.warn('Usuário não encontrado na tabela:', type);
-        setLoading(false);
-        return { success: false, message: `E-mail não encontrado no perfil de ${type}.` };
+      // -----------------------------------------------------------------------
+      // SUCESSO
+      // -----------------------------------------------------------------------
+      if (finalUser) {
+          const userData: User = {
+            id: finalUser.id || finalUser.matricula || finalUser.masp,
+            nome: finalUser.nome,
+            email: finalUser.email,
+            tipo: type,
+            foto_perfil_url: finalUser.foto_perfil_url,
+            turma: finalUser.turma,
+            matricula: finalUser.matricula,
+            masp: finalUser.masp,
+            bio: finalUser.bio,
+            localizacao: finalUser.localizacao,
+            senha: finalUser.senha
+          };
+
+          setUser(userData);
+          sessionStorage.setItem('currentUser', JSON.stringify(userData));
+          setLoading(false);
+          return { success: true };
       }
 
-      // Verificação de senha simples (texto puro conforme legado)
-      if (String(data.senha).trim() !== pass.trim()) {
-        console.warn('Senha incorreta');
-        setLoading(false);
-        return { success: false, message: 'Senha incorreta.' };
-      }
-
-      const userData: User = {
-        id: data.id || data.matricula,
-        nome: data.nome,
-        email: data.email,
-        tipo: type,
-        foto_perfil_url: data.foto_perfil_url,
-        turma: data.turma,
-        matricula: data.matricula,
-        masp: data.masp,
-        bio: data.bio,
-        localizacao: data.localizacao,
-        senha: data.senha
-      };
-
-      setUser(userData);
-      sessionStorage.setItem('currentUser', JSON.stringify(userData));
       setLoading(false);
-      return { success: true };
+      return { success: false, message: 'Erro desconhecido ao processar login.' };
+
     } catch (err: any) {
-      console.error('Erro crítico no login:', err);
+      console.error('[Auth] Erro crítico:', err);
       setLoading(false);
-      return { success: false, message: err.message || 'Erro inesperado ao entrar.' };
+      return { success: false, message: 'Erro de conexão ou configuração do sistema.' };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
     sessionStorage.removeItem('currentUser');
   };
