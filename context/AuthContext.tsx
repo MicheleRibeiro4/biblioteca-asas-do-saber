@@ -44,6 +44,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Erro Supabase:', error);
         setLoading(false);
+        
+        // Tratamento específico para erro de recursão infinita (RLS Policy Loop)
+        if (error.code === '42P17') {
+             return { success: false, message: 'Erro Crítico (Recursão Infinita): Peça ao administrador para corrigir as Políticas RLS no banco de dados.' };
+        }
+
         return { success: false, message: 'Erro de conexão com o banco de dados.' };
       }
 

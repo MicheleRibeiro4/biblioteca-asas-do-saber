@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { Book } from '../types';
 import { Card, Input, Select, Button, Badge, Modal } from '../components/ui/Layouts';
-import { Search, BookOpen, ChevronLeft, ChevronRight, TrendingUp, UserPlus, CheckCircle, MessageSquare, AlertCircle } from 'lucide-react';
+import { Search, BookOpen, ChevronLeft, ChevronRight, TrendingUp, UserPlus, CheckCircle, MessageSquare, AlertCircle, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -119,6 +119,7 @@ export const Catalog: React.FC = () => {
   };
 
   const fetchTopBooks = async () => {
+      // Logic for top 10 most read: Count loans per book
       const { data: loans } = await supabase.from('emprestimo').select('id_livro');
       if (loans) {
           const counts: Record<number, number> = {};
@@ -141,7 +142,8 @@ export const Catalog: React.FC = () => {
 
   const fetchBooks = async () => {
     setLoading(true);
-    let query = supabase.from('livros').select('*', { count: 'exact' });
+    // Include comentarios to calculate rating
+    let query = supabase.from('livros').select('*, comentarios(avaliacao, aprovado)', { count: 'exact' });
 
     // Unified Search Logic: Title OR Author
     if (searchTerm) {
@@ -155,7 +157,21 @@ export const Catalog: React.FC = () => {
 
     const { data, count } = await query.range(from, to).order('titulo');
     
-    if (data) setBooks(data);
+    if (data) {
+        // Calculate average rating for each book
+        const booksWithRating = data.map((book: any) => {
+            const approvedRatings = book.comentarios?.filter((c: any) => c.aprovado === true && c.avaliacao > 0) || [];
+            const totalRating = approvedRatings.reduce((acc: number, curr: any) => acc + curr.avaliacao, 0);
+            const avgRating = approvedRatings.length > 0 ? totalRating / approvedRatings.length : 0;
+            
+            return {
+                ...book,
+                rating: avgRating,
+                ratingCount: approvedRatings.length
+            };
+        });
+        setBooks(booksWithRating);
+    }
     if (count !== null) setTotalBooks(count);
     setLoading(false);
   };
@@ -328,10 +344,38 @@ export const Catalog: React.FC = () => {
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold">
                               Ver Detalhes
                           </div>
+                          {/* Rating Overlay */}
+                          {book.rating !== undefined && book.rating > 0 && (
+                             <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                                <Star size={12} className="text-yellow-500 fill-yellow-500" />
+                                <span className="text-xs font-bold text-gray-700">{book.rating.toFixed(1)}</span>
+                             </div>
+                          )}
                       </div>
                       <div className="p-4 flex-1 flex flex-col">
                           <h3 className="font-bold text-gray-900 line-clamp-1" title={book.titulo}>{book.titulo}</h3>
                           <p className="text-sm text-gray-500 mb-2 truncate">{book.autor}</p>
+                          
+                          {/* Rating in Card Body */}
+                          <div className="mb-3 flex items-center gap-1">
+                             {book.ratingCount && book.ratingCount > 0 ? (
+                                <>
+                                  <div className="flex">
+                                    {[1,2,3,4,5].map(star => (
+                                        <Star 
+                                            key={star} 
+                                            size={12} 
+                                            className={`${star <= Math.round(book.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`} 
+                                        />
+                                    ))}
+                                  </div>
+                                  <span className="text-[10px] text-gray-400 ml-1">({book.ratingCount})</span>
+                                </>
+                             ) : (
+                                <span className="text-[10px] text-gray-400">Sem avaliações</span>
+                             )}
+                          </div>
+
                           <div className="mt-auto flex justify-between items-center">
                               <Badge variant="default">{book.genero}</Badge>
                               {book.quantidade_disponivel > 0 ? 
@@ -369,6 +413,25 @@ export const Catalog: React.FC = () => {
                               <p className="text-xs text-gray-500 uppercase font-semibold">Autor</p>
                               <p className="text-gray-900 text-lg">{selectedBook.autor}</p>
                           </div>
+                          
+                          {/* Rating Detail */}
+                          <div>
+                             <p className="text-xs text-gray-500 uppercase font-semibold">Avaliação</p>
+                             <div className="flex items-center gap-2">
+                                <div className="flex">
+                                    {[1,2,3,4,5].map(star => (
+                                        <Star 
+                                            key={star} 
+                                            size={16} 
+                                            className={`${star <= Math.round(selectedBook.rating || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`} 
+                                        />
+                                    ))}
+                                </div>
+                                <span className="text-sm font-bold text-gray-700">{selectedBook.rating ? selectedBook.rating.toFixed(1) : 'N/A'}</span>
+                                <span className="text-sm text-gray-400">({selectedBook.ratingCount || 0} avaliações)</span>
+                             </div>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-2">
                               <div>
                                   <p className="text-xs text-gray-500 uppercase font-semibold">Editora</p>

@@ -1,4 +1,3 @@
-
 export type UserType = 'aluno' | 'bibliotecario' | 'professor';
 
 export interface User {
@@ -30,6 +29,9 @@ export interface Book {
   ano_publicacao?: string;
   paginas?: string;
   descricao?: string;
+  // Campos calculados no frontend ou views
+  rating?: number;
+  ratingCount?: number;
 }
 
 export interface Loan {

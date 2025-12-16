@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Book, LayoutDashboard, LogOut, User, Settings, Users, ClipboardList, MessageSquare, FileText, BarChart3, Bell, Edit, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Book, LayoutDashboard, LogOut, Settings, Users, ClipboardList, MessageSquare, BarChart3, Bell, Edit, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { Catalog } from './Catalog';
 import { StudentHome } from './student/StudentHome';
 import { LibrarianDashboard } from './librarian/LibrarianDashboard';
@@ -54,7 +54,7 @@ export const Dashboard: React.FC = () => {
         if (user.tipo === 'aluno') return <StudentHome onChangeTab={setActiveTab} />;
         if (user.tipo === 'bibliotecario') return <LibrarianDashboard initialTab="overview" />;
         if (user.tipo === 'professor') return <TeacherHome />;
-        return <div>Role not recognized</div>;
+        return <div>Papel de usuário não reconhecido.</div>;
       case 'catalog':
         return <Catalog />;
       case 'history':

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
 import { Book } from '../../types';
 import { Button, Input, Modal, Badge, Select } from '../../components/ui/Layouts';
-import { Plus, Edit2, Trash2, Search, BookOpen, ImageIcon, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, BookOpen, ImageIcon, ChevronLeft, ChevronRight, AlertTriangle, Star } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
 const ITEMS_PER_PAGE = 10;
@@ -61,7 +61,8 @@ export const BookManagement: React.FC = () => {
     const loadBooks = async () => {
         setLoading(true);
         try {
-            let query = supabase.from('livros').select('*', { count: 'exact' });
+            // Include comentarios to calculate rating
+            let query = supabase.from('livros').select('*, comentarios(avaliacao, aprovado)', { count: 'exact' });
 
             // Unified Search: Title OR Author
             if (searchTerm) {
@@ -77,7 +78,24 @@ export const BookManagement: React.FC = () => {
             
             if (error) throw error;
             
-            setBooks(data || []);
+            if (data) {
+                // Calculate average rating for each book
+                const booksWithRating = data.map((book: any) => {
+                    const approvedRatings = book.comentarios?.filter((c: any) => c.aprovado === true && c.avaliacao > 0) || [];
+                    const totalRating = approvedRatings.reduce((acc: number, curr: any) => acc + curr.avaliacao, 0);
+                    const avgRating = approvedRatings.length > 0 ? totalRating / approvedRatings.length : 0;
+                    
+                    return {
+                        ...book,
+                        rating: avgRating,
+                        ratingCount: approvedRatings.length
+                    };
+                });
+                setBooks(booksWithRating);
+            } else {
+                setBooks([]);
+            }
+
             setTotalBooks(count || 0);
         } catch (error) {
             console.error("Error loading books:", error);
@@ -96,6 +114,10 @@ export const BookManagement: React.FC = () => {
                 ...editingBook,
                 quantidade_disponivel: editingBook.quantidade_disponivel ?? editingBook.quantidade_total
             };
+
+            // Remove calculated fields before saving
+            delete (payload as any).rating;
+            delete (payload as any).ratingCount;
 
             if (editingBook.id) {
                 await supabase.from('livros').update(payload).eq('id', editingBook.id);
@@ -176,6 +198,7 @@ export const BookManagement: React.FC = () => {
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Capa</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Informações</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avaliação</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gênero</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estoque</th>
                                 <th className="px-6 py-3 text-right">Ações</th>
@@ -183,9 +206,9 @@ export const BookManagement: React.FC = () => {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {loading ? (
-                                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Carregando acervo...</td></tr>
+                                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">Carregando acervo...</td></tr>
                             ) : books.length === 0 ? (
-                                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Nenhum livro encontrado.</td></tr>
+                                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">Nenhum livro encontrado.</td></tr>
                             ) : (
                                 books.map(book => (
                                     <tr key={book.id} className="hover:bg-gray-50 transition-colors">
@@ -202,6 +225,19 @@ export const BookManagement: React.FC = () => {
                                             <div className="text-sm font-semibold text-gray-900">{book.titulo}</div>
                                             <div className="text-sm text-gray-500">{book.autor}</div>
                                             <div className="text-xs text-gray-400 mt-1">{book.editora}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {book.ratingCount && book.ratingCount > 0 ? (
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center">
+                                                        <Star size={14} className="text-yellow-400 fill-yellow-400 mr-1"/>
+                                                        <span className="text-sm font-bold text-gray-700">{book.rating?.toFixed(1)}</span>
+                                                    </div>
+                                                    <span className="text-xs text-gray-400">({book.ratingCount} votos)</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 italic">Sem votos</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <Badge variant="default">{book.genero}</Badge>
