@@ -5,6 +5,7 @@ import { supabase } from '../../services/supabase';
 import { Loan } from '../../types';
 import { Badge, Card, Button, Modal } from '../../components/ui/Layouts';
 import { useToast } from '../../context/ToastContext';
+import { Star, MessageSquare } from 'lucide-react';
 
 export const LoanHistory: React.FC = () => {
     const { user } = useAuth();
@@ -17,6 +18,7 @@ export const LoanHistory: React.FC = () => {
     const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
     const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
     const [commentText, setCommentText] = useState('');
+    const [rating, setRating] = useState(0);
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
@@ -47,12 +49,19 @@ export const LoanHistory: React.FC = () => {
     const handleOpenRate = (bookId: number) => {
         setSelectedBookId(bookId);
         setCommentText('');
+        setRating(0);
         setIsCommentModalOpen(true);
     };
 
     const submitComment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedBookId || !user) return;
+        
+        if (rating === 0) {
+            addToast('Por favor, selecione uma nota de 1 a 5 estrelas.', 'warning');
+            return;
+        }
+
         setSubmitting(true);
         try {
             const { error } = await supabase.from('comentarios').insert([{
@@ -60,11 +69,12 @@ export const LoanHistory: React.FC = () => {
                 id_livro: selectedBookId,
                 comentario: commentText,
                 aprovado: null, // NULL = Pendente/Em Análise
-                data_comentario: new Date().toISOString()
+                data_comentario: new Date().toISOString(),
+                avaliacao: rating
             }]);
 
             if (error) throw error;
-            addToast('Comentário enviado!', 'success');
+            addToast('Avaliação enviada com sucesso!', 'success');
             setIsCommentModalOpen(false);
             setCommentedBooks(prev => [...prev, selectedBookId]);
         } catch (e: any) {
@@ -74,10 +84,51 @@ export const LoanHistory: React.FC = () => {
         }
     };
 
+    // Calculate pending reviews
+    const pendingReviews = loans.filter(loan => 
+        (loan.status === 'concluido' || (loan.data_devolucao_real && loan.status !== 'rejeitado')) 
+        && !commentedBooks.includes(loan.id_livro)
+    );
+
     if (loading) return <div>Carregando histórico...</div>;
 
     return (
         <div className="space-y-6">
+            
+            {/* Pending Reviews Section - Prominent */}
+            {pendingReviews.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 shadow-sm animate-in slide-in-from-top-4">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="bg-yellow-100 p-2 rounded-full text-yellow-600">
+                            <Star size={24} className="fill-yellow-500 text-yellow-500" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-800 text-lg">Você tem avaliações pendentes!</h3>
+                            <p className="text-gray-600 text-sm">Conta pra gente o que você achou das suas últimas leituras.</p>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {pendingReviews.map(loan => (
+                            <div key={`pending-${loan.id}`} className="bg-white p-3 rounded-lg border border-yellow-100 flex items-center gap-3 shadow-sm">
+                                <div className="h-12 w-9 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
+                                     <img src={loan.livros?.capa_url || ''} className="w-full h-full object-cover" onError={(e) => (e.currentTarget.src = '')} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-gray-800 truncate">{loan.livros?.titulo}</p>
+                                    <button 
+                                        onClick={() => handleOpenRate(loan.id_livro)}
+                                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800 mt-1 flex items-center gap-1"
+                                    >
+                                        Avaliar Agora
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <h2 className="text-2xl font-bold text-gray-800">Meus Empréstimos</h2>
             {loans.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl">
@@ -109,8 +160,13 @@ export const LoanHistory: React.FC = () => {
                                     </div>
                                     
                                     {canRate && (
-                                        <Button size="sm" variant="ghost" className="mt-2 text-indigo-600 p-0 hover:bg-transparent" onClick={() => handleOpenRate(loan.id_livro)}>
-                                            Avaliar este livro
+                                        <Button 
+                                            size="sm" 
+                                            className="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm" 
+                                            onClick={() => handleOpenRate(loan.id_livro)}
+                                        >
+                                            <MessageSquare size={16} className="mr-2" />
+                                            Avaliar Leitura
                                         </Button>
                                     )}
                                 </div>
@@ -135,7 +191,23 @@ export const LoanHistory: React.FC = () => {
                 onClose={() => setIsCommentModalOpen(false)}
                 title="Avaliar Livro"
             >
-                <form onSubmit={submitComment} className="space-y-4">
+                <form onSubmit={submitComment} className="space-y-6">
+                    <div className="text-center">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Quantas estrelas?</label>
+                        <div className="flex justify-center gap-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setRating(star)}
+                                    className={`transition-transform hover:scale-110 focus:outline-none ${rating >= star ? 'text-yellow-400' : 'text-gray-300'}`}
+                                >
+                                    <Star size={32} fill="currentColor" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Seu Comentário</label>
                         <textarea

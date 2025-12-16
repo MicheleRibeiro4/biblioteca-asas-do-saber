@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
 import { User, UserType } from '../../types';
 import { Button, Input, Modal, Select, Badge } from '../../components/ui/Layouts';
-import { Plus, Edit2, Trash2, Search, UserCheck, ArrowRightLeft, Bell, Power, CheckSquare, Send, Filter, X, AlertTriangle, User as UserIcon, GraduationCap, Briefcase, BookOpenCheck, Archive, Mail, Key } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, UserCheck, ArrowRightLeft, Power, CheckSquare, Filter, X, AlertTriangle, User as UserIcon, GraduationCap, Briefcase, BookOpenCheck, Archive } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
 interface UserManagementProps { showOverdueOnly?: boolean; }
@@ -31,9 +31,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
     const [selectedMigrationIds, setSelectedMigrationIds] = useState<Set<string>>(new Set());
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean; title: string; message: string; onConfirm: () => void; variant?: 'danger'|'primary'|'success'; confirmText?: string;}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
-
-    // Notification Modal
-    const [notificationModal, setNotificationModal] = useState<{ isOpen: boolean; user: User | null }>({ isOpen: false, user: null });
 
     useEffect(() => { setIsOverdueFilter(showOverdueOnly); if (showOverdueOnly) setUserType('aluno'); }, [showOverdueOnly]);
     useEffect(() => { loadUsers(); }, [userType, isOverdueFilter]);
@@ -214,44 +211,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
         } catch(e:any){ addToast(e.message, 'error'); } finally { setSaving(false); }
     };
 
-    // --- EMAIL NOTIFICATION LOGIC ---
-    const sendEmail = (type: 'credentials' | 'warning', user: User) => {
-        if (!user.email || !user.email.includes('@')) {
-            addToast('Usuário sem e-mail válido cadastrado.', 'error');
-            return;
-        }
-
-        let subject = '';
-        let body = '';
-
-        if (type === 'credentials') {
-            subject = 'Acesso à Biblioteca Asas do Saber';
-            body = `Olá ${user.nome},\n\n` +
-                   `Segue abaixo suas credenciais de acesso ao sistema da biblioteca:\n\n` +
-                   `Login (Email): ${user.email}\n` +
-                   `Senha: ${user.senha}\n` +
-                   (user.matricula ? `Matrícula: ${user.matricula}\n` : '') +
-                   `\nPor favor, altere sua senha após o primeiro acesso.\n\n` +
-                   `Atenciosamente,\nEquipe da Biblioteca`;
-        } else {
-            subject = 'Aviso Importante - Biblioteca Asas do Saber';
-            body = `Olá ${user.nome},\n\n` +
-                   `Identificamos pendências em seu cadastro ou empréstimos na biblioteca.\n` +
-                   `Por favor, compareça à biblioteca para regularizar sua situação o mais breve possível.\n\n` +
-                   `Atenciosamente,\nEquipe da Biblioteca`;
-        }
-
-        // Create mailto link
-        const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        
-        // CORRECTION: Use window.location.href instead of window.open to avoid pop-up blockers
-        // and ensure the default mail client opens reliably.
-        window.location.href = mailtoLink;
-        
-        addToast('Abrindo aplicativo de e-mail...', 'success');
-        setNotificationModal({ isOpen: false, user: null });
-    };
-
     const filteredUsers = users.filter(u => u.nome.toLowerCase().includes(searchTerm.toLowerCase()) || (String(u.id).includes(searchTerm)));
     const openModal = (user?: User) => { if (user) setEditingUser({ ...user, senha: '' }); else setEditingUser({ tipo: userType }); setIsModalOpen(true); };
 
@@ -337,13 +296,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
                                         <td className="px-6 py-4 text-center"><Badge variant={isActive ? 'success' : 'danger'}>{isActive ? 'ATIVO' : 'INATIVO'}</Badge></td>
                                         <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                                             <div className="flex justify-end gap-1">
-                                                <button 
-                                                    onClick={() => setNotificationModal({ isOpen: true, user })}
-                                                    title="Enviar e-mail (Senha/Avisos)"
-                                                    className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg hover:text-indigo-700"
-                                                >
-                                                    <Mail size={18} />
-                                                </button>
                                                 <button onClick={() => handleToggleStatusClick(user)} className={`p-2 rounded-lg ${isActive ? 'text-rose-600 hover:bg-rose-50' : 'text-emerald-600 hover:bg-emerald-50'}`}><Power size={18} /></button>
                                                 <button onClick={() => openModal(user)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={18} /></button>
                                             </div>
@@ -423,47 +375,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ showOverdueOnly 
                  </div>
             </Modal>
             
-            {/* Notification Selection Modal */}
-            <Modal isOpen={notificationModal.isOpen} onClose={() => setNotificationModal({ isOpen: false, user: null })} title="Notificar Usuário">
-                <div className="space-y-4">
-                    <p className="text-gray-600 text-sm mb-4">
-                        Selecione o tipo de notificação para enviar a <strong>{notificationModal.user?.nome}</strong> via e-mail.
-                    </p>
-                    
-                    <div className="grid grid-cols-1 gap-3">
-                        <button 
-                            onClick={() => notificationModal.user && sendEmail('credentials', notificationModal.user)}
-                            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group text-left"
-                        >
-                            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-200 transition-colors">
-                                <Key size={20} />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-800 group-hover:text-indigo-700">Enviar Credenciais</h4>
-                                <p className="text-xs text-gray-500">Envia senha e login para o e-mail cadastrado.</p>
-                            </div>
-                        </button>
-
-                        <button 
-                            onClick={() => notificationModal.user && sendEmail('warning', notificationModal.user)}
-                            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition-all group text-left"
-                        >
-                            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 group-hover:bg-amber-200 transition-colors">
-                                <AlertTriangle size={20} />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-800 group-hover:text-amber-700">Enviar Aviso de Pendência</h4>
-                                <p className="text-xs text-gray-500">Notifica sobre atrasos ou problemas na conta.</p>
-                            </div>
-                        </button>
-                    </div>
-
-                    <div className="flex justify-end pt-2">
-                        <Button variant="secondary" onClick={() => setNotificationModal({ isOpen: false, user: null })}>Fechar</Button>
-                    </div>
-                </div>
-            </Modal>
-
             <Modal isOpen={confirmConfig.isOpen} onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} title={confirmConfig.title}>
                 <div className="space-y-6 text-center">
                     <p className="text-gray-600">{confirmConfig.message}</p>

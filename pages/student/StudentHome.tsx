@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabase';
 import { Card, Button, Badge, StatCard, Modal } from '../../components/ui/Layouts';
-import { BookOpen, Clock, MessageSquare, ArrowRight, Calendar, AlertCircle, Search, AlertTriangle } from 'lucide-react';
+import { BookOpen, Clock, MessageSquare, ArrowRight, Calendar, AlertCircle, Search, AlertTriangle, Star } from 'lucide-react';
 import { Loan } from '../../types';
 
 export const StudentHome: React.FC<{ onChangeTab: (tab: any) => void }> = ({ onChangeTab }) => {
@@ -12,9 +12,10 @@ export const StudentHome: React.FC<{ onChangeTab: (tab: any) => void }> = ({ onC
   const [recentLoans, setRecentLoans] = useState<Loan[]>([]);
   const [nextDue, setNextDue] = useState<string | null>(null);
   
-  // Overdue Logic
+  // Overdue & Review Logic
   const [overdueBooks, setOverdueBooks] = useState<Loan[]>([]);
   const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -26,9 +27,11 @@ export const StudentHome: React.FC<{ onChangeTab: (tab: any) => void }> = ({ onC
             
             // Safe comment fetch
             let commentsCount = 0;
+            let commentedBookIds: number[] = [];
             try {
-                const { count } = await supabase.from('comentarios').select('*', { count: 'exact' }).eq('matricula_aluno', user.matricula);
+                const { data: comments, count } = await supabase.from('comentarios').select('id_livro', { count: 'exact' }).eq('matricula_aluno', user.matricula);
                 commentsCount = count || 0;
+                if(comments) commentedBookIds = comments.map(c => c.id_livro);
             } catch (e) {
                 console.warn("Could not fetch comments count, likely schema issue");
             }
@@ -55,23 +58,32 @@ export const StudentHome: React.FC<{ onChangeTab: (tab: any) => void }> = ({ onC
                     setNextDue(activeLoans[0].devolutiva);
                 }
 
-                // Check for Overdue Books (Active Loans past Due Date)
+                // Check for Overdue Books (Active Loans past Due Date) & Pending Reviews
                 const now = new Date();
                 
-                // We need to fetch ALL active loans to check for overdue, not just the recent 3
-                const { data: allActive } = await supabase
+                // Fetch ALL relevant loans
+                const { data: allHistory } = await supabase
                     .from('emprestimo')
-                    .select('*, livros(titulo)')
-                    .eq('matricula_aluno', user.matricula)
-                    .eq('status', 'aprovado')
-                    .is('data_devolucao_real', null);
+                    .select('id, id_livro, status, devolutiva, data_devolucao_real, livros(titulo)')
+                    .eq('matricula_aluno', user.matricula);
 
-                if (allActive) {
-                    const overdueList = allActive.filter(l => new Date(l.devolutiva) < now);
+                if (allHistory) {
+                    // Overdue Logic
+                    const activeList = allHistory.filter(l => l.status === 'aprovado' && !l.data_devolucao_real);
+                    const overdueList = activeList.filter(l => new Date(l.devolutiva) < now);
+                    
                     if (overdueList.length > 0) {
-                        setOverdueBooks(overdueList);
+                        setOverdueBooks(overdueList as Loan[]);
                         setIsOverdueModalOpen(true);
                     }
+
+                    // Pending Reviews Logic
+                    // Returned (concluido OR has return date) AND Not Rejected AND Not Commented
+                    const reviewsNeeded = allHistory.filter(l => 
+                        (l.status === 'concluido' || (l.data_devolucao_real && l.status !== 'rejeitado')) 
+                        && !commentedBookIds.includes(l.id_livro)
+                    );
+                    setPendingReviewCount(reviewsNeeded.length);
                 }
             }
         } catch (err) {
@@ -86,19 +98,44 @@ export const StudentHome: React.FC<{ onChangeTab: (tab: any) => void }> = ({ onC
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       
-      {/* Overdue Alert Banner (Persistent) */}
-      {overdueBooks.length > 0 && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-600 w-6 h-6" />
-                <div>
-                    <h4 className="text-red-800 font-bold">Atenção! Você possui {overdueBooks.length} livro(s) atrasado(s).</h4>
-                    <p className="text-red-700 text-sm">Por favor, regularize sua situação na biblioteca o mais breve possível.</p>
+      {/* Alerts Container */}
+      <div className="space-y-4">
+          {/* Overdue Alert Banner (Persistent) */}
+          {overdueBooks.length > 0 && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <AlertCircle className="text-red-600 w-6 h-6" />
+                    <div>
+                        <h4 className="text-red-800 font-bold">Atenção! Você possui {overdueBooks.length} livro(s) atrasado(s).</h4>
+                        <p className="text-red-700 text-sm">Por favor, regularize sua situação na biblioteca o mais breve possível.</p>
+                    </div>
                 </div>
+                <Button size="sm" variant="danger" onClick={() => onChangeTab('history')}>Ver Detalhes</Button>
             </div>
-            <Button size="sm" variant="danger" onClick={() => onChangeTab('history')}>Ver Detalhes</Button>
-        </div>
-      )}
+          )}
+
+          {/* Pending Reviews Banner */}
+          {pendingReviewCount > 0 && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="bg-yellow-100 p-2 rounded-full">
+                        <Star className="text-yellow-600 w-5 h-5 fill-yellow-500" />
+                    </div>
+                    <div>
+                        <h4 className="text-yellow-800 font-bold">Você tem {pendingReviewCount} leitura(s) para avaliar!</h4>
+                        <p className="text-yellow-700 text-sm">Sua opinião ajuda outros alunos a escolherem bons livros.</p>
+                    </div>
+                </div>
+                <Button 
+                    size="sm" 
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white border-none shadow-sm"
+                    onClick={() => onChangeTab('history')}
+                >
+                    Avaliar Agora
+                </Button>
+            </div>
+          )}
+      </div>
 
       {/* Overdue Popup Modal */}
       <Modal 

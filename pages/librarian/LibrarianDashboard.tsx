@@ -4,9 +4,10 @@ import { BookManagement } from './BookManagement';
 import { UserManagement } from './UserManagement';
 import { LoanManagement } from './LoanManagement';
 import { CommentsManagement } from './CommentsManagement';
+import { EmailNotifications } from './EmailNotifications'; // Novo Componente
 import { supabase } from '../../services/supabase';
 import { StatCard, Badge, Button, Card, Select } from '../../components/ui/Layouts';
-import { BookOpen, Users, AlertCircle, TrendingUp, Trophy, BarChart3, Download, PieChart, Printer } from 'lucide-react';
+import { BookOpen, Users, AlertCircle, TrendingUp, Trophy, BarChart3, Download, PieChart, Printer, Mail } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -396,13 +397,14 @@ export const LibrarianDashboard: React.FC<{ initialTab?: string }> = ({ initialT
             'loans': 'Gestão de Empréstimos',
             'books': 'Gerenciar Acervo',
             'comments': 'Moderação de Comentários',
-            'reports': 'Relatórios'
+            'reports': 'Relatórios',
+            'emails': 'Notificações por Email'
         };
         return titles[t] || t;
     };
 
     // Tabs that already have their own headers inside the component
-    const tabsWithOwnHeader = ['books', 'users', 'comments'];
+    const tabsWithOwnHeader = ['books', 'users', 'comments', 'emails'];
 
     return (
         <div className="space-y-6">
@@ -427,6 +429,7 @@ export const LibrarianDashboard: React.FC<{ initialTab?: string }> = ({ initialT
                 {tab === 'users' && <UserManagement showOverdueOnly={filterOverdueUsers} />}
                 {tab === 'loans' && <LoanManagement />}
                 {tab === 'comments' && <CommentsManagement />}
+                {tab === 'emails' && <EmailNotifications />}
                 {tab === 'reports' && <ReportsView addToast={addToast} />}
             </div>
         </div>
