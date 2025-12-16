@@ -60,19 +60,19 @@ export const BookManagement: React.FC = () => {
 
     const loadBooks = async () => {
         setLoading(true);
+        
+        // Prepare Range
+        const from = (currentPage - 1) * ITEMS_PER_PAGE;
+        const to = from + ITEMS_PER_PAGE - 1;
+
         try {
-            // Include comentarios to calculate rating
+            // Attempt Complex Query (with Ratings)
             let query = supabase.from('livros').select('*, comentarios(avaliacao, aprovado)', { count: 'exact' });
 
-            // Unified Search: Title OR Author
             if (searchTerm) {
                 query = query.or(`titulo.ilike.%${searchTerm}%,autor.ilike.%${searchTerm}%`);
             }
-            
             if (genreFilter) query = query.eq('genero', genreFilter);
-
-            const from = (currentPage - 1) * ITEMS_PER_PAGE;
-            const to = from + ITEMS_PER_PAGE - 1;
 
             const { data, count, error } = await query.range(from, to).order('titulo');
             
@@ -95,11 +95,31 @@ export const BookManagement: React.FC = () => {
             } else {
                 setBooks([]);
             }
+            if (count !== null) setTotalBooks(count);
 
-            setTotalBooks(count || 0);
-        } catch (error) {
-            console.error("Error loading books:", error);
-            addToast('Erro ao carregar livros', 'error');
+        } catch (error: any) {
+            console.warn("Fallback de carregamento de livros ativado devido a erro:", error.message);
+            // Fallback to Simple Query (No Ratings)
+            try {
+                let simpleQuery = supabase.from('livros').select('*', { count: 'exact' });
+                if (searchTerm) {
+                    simpleQuery = simpleQuery.or(`titulo.ilike.%${searchTerm}%,autor.ilike.%${searchTerm}%`);
+                }
+                if (genreFilter) simpleQuery = simpleQuery.eq('genero', genreFilter);
+                
+                const { data, count, error: simpleError } = await simpleQuery.range(from, to).order('titulo');
+
+                if (simpleError) throw simpleError;
+                
+                if (data) {
+                    setBooks(data.map(b => ({ ...b, rating: 0, ratingCount: 0 })));
+                }
+                if (count !== null) setTotalBooks(count);
+
+            } catch (finalError) {
+                console.error("Erro fatal ao carregar livros:", finalError);
+                addToast('Erro ao carregar livros', 'error');
+            }
         } finally {
             setLoading(false);
         }

@@ -383,11 +383,16 @@ export const LibrarianDashboard: React.FC<{ initialTab?: string }> = ({ initialT
         return titles[t] || t;
     };
 
+    // Tabs that already have their own headers inside the component
+    const tabsWithOwnHeader = ['books', 'users', 'comments'];
+
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-800 capitalize print:hidden">
-                {getTabTitle(tab)}
-            </h1>
+            {!tabsWithOwnHeader.includes(tab) && (
+                <h1 className="text-2xl font-bold text-gray-800 capitalize print:hidden">
+                    {getTabTitle(tab)}
+                </h1>
+            )}
             
             <style>{`
                 @media print {

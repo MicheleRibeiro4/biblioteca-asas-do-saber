@@ -142,38 +142,69 @@ export const Catalog: React.FC = () => {
 
   const fetchBooks = async () => {
     setLoading(true);
-    // Include comentarios to calculate rating
-    let query = supabase.from('livros').select('*, comentarios(avaliacao, aprovado)', { count: 'exact' });
-
-    // Unified Search Logic: Title OR Author
-    if (searchTerm) {
-        query = query.or(`titulo.ilike.%${searchTerm}%,autor.ilike.%${searchTerm}%`);
-    }
     
-    if (genreFilter) query = query.eq('genero', genreFilter);
-
+    // Construct range
     const from = (currentPage - 1) * ITEMS_PER_PAGE;
     const to = from + ITEMS_PER_PAGE - 1;
 
-    const { data, count } = await query.range(from, to).order('titulo');
-    
-    if (data) {
-        // Calculate average rating for each book
-        const booksWithRating = data.map((book: any) => {
-            const approvedRatings = book.comentarios?.filter((c: any) => c.aprovado === true && c.avaliacao > 0) || [];
-            const totalRating = approvedRatings.reduce((acc: number, curr: any) => acc + curr.avaliacao, 0);
-            const avgRating = approvedRatings.length > 0 ? totalRating / approvedRatings.length : 0;
+    try {
+        // Try fetching with ratings first
+        let query = supabase.from('livros').select('*, comentarios(avaliacao, aprovado)', { count: 'exact' });
+
+        if (searchTerm) {
+            query = query.or(`titulo.ilike.%${searchTerm}%,autor.ilike.%${searchTerm}%`);
+        }
+        
+        if (genreFilter) query = query.eq('genero', genreFilter);
+
+        const { data, count, error } = await query.range(from, to).order('titulo');
+        
+        if (error) throw error;
+        
+        if (data) {
+            const booksWithRating = data.map((book: any) => {
+                const approvedRatings = book.comentarios?.filter((c: any) => c.aprovado === true && c.avaliacao > 0) || [];
+                const totalRating = approvedRatings.reduce((acc: number, curr: any) => acc + curr.avaliacao, 0);
+                const avgRating = approvedRatings.length > 0 ? totalRating / approvedRatings.length : 0;
+                
+                return {
+                    ...book,
+                    rating: avgRating,
+                    ratingCount: approvedRatings.length
+                };
+            });
+            setBooks(booksWithRating);
+        }
+        if (count !== null) setTotalBooks(count);
+    } catch (error: any) {
+        console.warn("Falha ao carregar com avaliações, tentando carregamento simples:", error.message);
+        
+        // Fallback: Simple query without comments (avoids RLS recursion on joined table if any)
+        try {
+            let simpleQuery = supabase.from('livros').select('*', { count: 'exact' });
+
+            if (searchTerm) {
+                simpleQuery = simpleQuery.or(`titulo.ilike.%${searchTerm}%,autor.ilike.%${searchTerm}%`);
+            }
+            if (genreFilter) simpleQuery = simpleQuery.eq('genero', genreFilter);
+
+            const { data, count, error: simpleError } = await simpleQuery.range(from, to).order('titulo');
             
-            return {
-                ...book,
-                rating: avgRating,
-                ratingCount: approvedRatings.length
-            };
-        });
-        setBooks(booksWithRating);
+            if (simpleError) throw simpleError;
+
+            if (data) {
+                // Initialize with 0 rating
+                setBooks(data.map((b: any) => ({ ...b, rating: 0, ratingCount: 0 })));
+            }
+            if (count !== null) setTotalBooks(count);
+
+        } catch (finalError: any) {
+            console.error("Erro fatal ao carregar livros:", finalError);
+            addToast('Erro ao carregar catálogo. Tente novamente mais tarde.', 'error');
+        }
+    } finally {
+        setLoading(false);
     }
-    if (count !== null) setTotalBooks(count);
-    setLoading(false);
   };
 
   const handleOpenBook = (book: Book) => {
