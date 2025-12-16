@@ -59,17 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (profileData) {
           finalUser = profileData;
-        } else {
-            // Fallback plural
-            if (type === 'bibliotecario') {
-                const { data: pluralData } = await supabase
-                    .from('bibliotecarios')
-                    .select('*')
-                    .or(`email.ilike.${cleanEmail},user_id.eq.${authData.user.id}`)
-                    .limit(1)
-                    .maybeSingle();
-                if (pluralData) finalUser = pluralData;
-            }
         }
       }
 
@@ -85,17 +74,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .ilike('email', cleanEmail)
           .limit(1)
           .maybeSingle();
-
-        // Fallback plural para legado
-        if (!tableData && type === 'bibliotecario') {
-             const { data: pluralData } = await supabase
-                .from('bibliotecarios')
-                .select('*')
-                .ilike('email', cleanEmail)
-                .limit(1)
-                .maybeSingle();
-             if (pluralData) tableData = pluralData;
-        }
 
         if (tableData) {
             const dbPass = tableData.senha ? String(tableData.senha).trim() : '';
