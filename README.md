@@ -38,3 +38,4 @@ Para colocar o site online na Vercel:
 - Supabase (Backend & Auth)
 - Lucide React (Ícones)
 - Vite (Build Tool)
+teste de deploy
