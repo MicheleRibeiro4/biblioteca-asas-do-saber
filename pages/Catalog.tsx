@@ -131,10 +131,38 @@ export const Catalog: React.FC = () => {
             .map(k => parseInt(k[0]));
           
           if (sortedIds.length > 0) {
-              const { data } = await supabase.from('livros').select('*').in('id', sortedIds);
-              if (data) {
-                  const sortedData = sortedIds.map(id => data.find(b => b.id === id)).filter(Boolean) as Book[];
-                  setTopBooks(sortedData);
+              try {
+                  // Fetch books AND comments to calculate ratings
+                  const { data, error } = await supabase
+                    .from('livros')
+                    .select('*, comentarios(avaliacao, aprovado)')
+                    .in('id', sortedIds);
+                  
+                  if (error) throw error;
+
+                  if (data) {
+                      const processed = data.map((book: any) => {
+                          const approvedRatings = book.comentarios?.filter((c: any) => c.aprovado === true && c.avaliacao > 0) || [];
+                          const totalRating = approvedRatings.reduce((acc: number, curr: any) => acc + curr.avaliacao, 0);
+                          const avgRating = approvedRatings.length > 0 ? totalRating / approvedRatings.length : 0;
+                          
+                          return {
+                              ...book,
+                              rating: avgRating,
+                              ratingCount: approvedRatings.length
+                          };
+                      });
+                      const sortedData = sortedIds.map(id => processed.find(b => b.id === id)).filter(Boolean) as Book[];
+                      setTopBooks(sortedData);
+                  }
+              } catch (e) {
+                  console.warn("Top 10: Fallback sem avaliações devido a erro (RLS?).");
+                  // Fallback: simple fetch without comments
+                  const { data } = await supabase.from('livros').select('*').in('id', sortedIds);
+                  if (data) {
+                      const sortedData = sortedIds.map(id => data.find(b => b.id === id)).filter(Boolean) as Book[];
+                      setTopBooks(sortedData.map(b => ({ ...b, rating: 0, ratingCount: 0 })));
+                  }
               }
           }
       }
@@ -329,7 +357,15 @@ export const Catalog: React.FC = () => {
                               )}
                           </div>
                           <p className="text-xs font-semibold text-gray-800 truncate" title={book.titulo}>{book.titulo}</p>
-                          <p className="text-[10px] text-gray-500 truncate">{book.autor}</p>
+                          <div className="flex items-center justify-between mt-0.5">
+                              <p className="text-[10px] text-gray-500 truncate max-w-[60%]">{book.autor}</p>
+                              {book.rating !== undefined && book.rating > 0 && (
+                                <div className="flex items-center gap-0.5 bg-yellow-50 px-1 rounded-sm border border-yellow-100/50">
+                                    <Star size={8} className="text-yellow-400 fill-yellow-400" />
+                                    <span className="text-[9px] font-bold text-gray-600">{book.rating.toFixed(1)}</span>
+                                </div>
+                              )}
+                          </div>
                       </div>
                   ))}
               </div>

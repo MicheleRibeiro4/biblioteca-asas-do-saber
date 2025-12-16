@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { UserType } from '../types';
-import { BookOpen, GraduationCap, BookOpenCheck, HelpCircle, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { BookOpen, GraduationCap, BookOpenCheck, HelpCircle, Lock, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Button, Input, Modal } from '../components/ui/Layouts';
 
 export const Login: React.FC = () => {
@@ -23,8 +23,6 @@ export const Login: React.FC = () => {
   const [verifiedUserId, setVerifiedUserId] = useState<string | number | null>(null);
   
   // Forgot Form Data
-  // Fixed to 'aluno' as per requirement
-  const recoverType: UserType = 'aluno'; 
   const [recoverEmail, setRecoverEmail] = useState('');
   const [recoverId, setRecoverId] = useState(''); // Matricula
   const [recoverClass, setRecoverClass] = useState(''); // Turma
@@ -38,9 +36,14 @@ export const Login: React.FC = () => {
     setError('');
     setIsSubmitting(true);
     
+    // Pequeno delay para UX
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const result = await login(email.trim(), password.trim(), selectedType);
+    
     if (!result.success) {
-      setError(result.message || 'Erro ao entrar');
+      setError(result.message || 'Credenciais inválidas. Verifique e tente novamente.');
+      // Shake animation effect could be added here via CSS class if needed
     }
     setIsSubmitting(false);
   };
@@ -153,7 +156,7 @@ export const Login: React.FC = () => {
               <button
                 key={type.id}
                 type="button"
-                onClick={() => setSelectedType(type.id)}
+                onClick={() => { setSelectedType(type.id); setError(''); }}
                 className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 ${
                   selectedType === type.id
                     ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md transform scale-105 ring-2 ring-indigo-200'
@@ -170,14 +173,24 @@ export const Login: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-start gap-3 animate-in slide-in-from-top-2 shadow-sm">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div>
+                  <span className="font-bold block">Acesso Negado</span>
+                  {error}
+              </div>
+            </div>
+          )}
+
           <Input 
             label="Email" 
             type="email" 
             placeholder="seu@email.com" 
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); setError(''); }}
             required
-            className="bg-gray-50"
+            className={`bg-gray-50 ${error ? 'border-red-300 focus:ring-red-200' : ''}`}
           />
           
           <div className="relative">
@@ -186,9 +199,9 @@ export const Login: React.FC = () => {
                 type={showPassword ? "text" : "password"} 
                 placeholder="••••" 
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 required
-                className="bg-gray-50 pr-10"
+                className={`bg-gray-50 pr-10 ${error ? 'border-red-300 focus:ring-red-200' : ''}`}
             />
             <button 
                 type="button"
@@ -215,12 +228,6 @@ export const Login: React.FC = () => {
                   </button>
               )}
           </div>
-          
-          {error && (
-            <div className="p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded flex items-center animate-in slide-in-from-top-1">
-              <span>{error}</span>
-            </div>
-          )}
 
           <Button type="submit" className="w-full h-12 text-lg shadow-lg shadow-indigo-200" isLoading={isSubmitting}>
             Entrar
