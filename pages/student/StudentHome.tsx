@@ -64,7 +64,7 @@ export const StudentHome: React.FC<{ onChangeTab: (tab: any) => void }> = ({ onC
                 // Fetch ALL relevant loans
                 const { data: allHistory } = await supabase
                     .from('emprestimo')
-                    .select('id, id_livro, status, devolutiva, data_devolucao_real, livros(titulo)')
+                    .select('id, id_livro, matricula_aluno, data_emprestimo, status, devolutiva, data_devolucao_real, livros(titulo)')
                     .eq('matricula_aluno', user.matricula);
 
                 if (allHistory) {
@@ -73,7 +73,7 @@ export const StudentHome: React.FC<{ onChangeTab: (tab: any) => void }> = ({ onC
                     const overdueList = activeList.filter(l => new Date(l.devolutiva) < now);
                     
                     if (overdueList.length > 0) {
-                        setOverdueBooks(overdueList as Loan[]);
+                        setOverdueBooks(overdueList as unknown as Loan[]);
                         setIsOverdueModalOpen(true);
                     }
 
