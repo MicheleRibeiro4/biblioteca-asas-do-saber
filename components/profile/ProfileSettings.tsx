@@ -21,26 +21,23 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
   const [loading, setLoading] = useState(false);
   const [isLogoutConfirm, setIsLogoutConfirm] = useState(false);
 
-  // File Upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   if (!user) return null;
 
-  // Verifica se é o primeiro acesso (senha padrão)
   const isForcedUpdate = user.senha === '1234';
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      if (file.size > 2 * 1024 * 1024) {
           addToast("A imagem é muito grande. Máximo 2MB.", "error");
           return;
       }
 
       setIsUploading(true);
-      
       const reader = new FileReader();
       reader.onloadend = () => {
           if (typeof reader.result === 'string') {
@@ -55,7 +52,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
       reader.readAsDataURL(file);
   };
 
-  // Definição de Senha Forte
   const passwordRequirements = [
     { id: 'len', label: "Mínimo 8 caracteres", valid: newPassword.length >= 8 },
     { id: 'upper', label: "Uma letra maiúscula", valid: /[A-Z]/.test(newPassword) },
@@ -73,25 +69,12 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
     try {
       const updates: any = {};
       
-      // Handle Photo Update
-      if (photoUrl !== user.foto_perfil_url) {
-        updates.foto_perfil_url = photoUrl;
-      }
+      if (photoUrl !== user.foto_perfil_url) updates.foto_perfil_url = photoUrl;
 
-      // Handle Password Update
       if (newPassword) {
-        if (!isPasswordStrong) {
-            throw new Error("A senha não atende aos requisitos de segurança.");
-        }
-
-        if (newPassword !== confirmPassword) {
-          throw new Error("As senhas não coincidem.");
-        }
-        
-        if (newPassword === '1234') {
-            throw new Error("Você não pode usar a senha padrão.");
-        }
-
+        if (!isPasswordStrong) throw new Error("A senha não atende aos requisitos.");
+        if (newPassword !== confirmPassword) throw new Error("As senhas não coincidem.");
+        if (newPassword === '1234') throw new Error("Você não pode usar a senha padrão.");
         updates.senha = newPassword;
       } else if (isForcedUpdate) {
           throw new Error("Você deve definir uma nova senha para continuar.");
@@ -99,31 +82,35 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
 
       if (Object.keys(updates).length === 0) {
         setLoading(false);
-        if (!isForcedUpdate) onClose();
+        onClose();
         return;
       }
 
-      // Determine Table and ID based on User Type
       const table = user.tipo; 
+      const pkColumn = user.tipo === 'aluno' ? 'matricula' : 'id';
+      const pkValue = user.id;
+
+      console.log(`[Profile] Tentando atualizar ${table} onde ${pkColumn} = ${pkValue}`, updates);
       
-      let query = supabase.from(table).update(updates);
-      
-      if (user.tipo === 'aluno') {
-        query = query.eq('matricula', user.matricula);
-      } else {
-        query = query.eq('id', user.id);
+      const { data, error } = await supabase
+        .from(table)
+        .update(updates)
+        .eq(pkColumn, pkValue)
+        .select();
+
+      if (error) {
+          console.error('[Profile] Erro Supabase:', error);
+          if (error.code === '42501') {
+              throw new Error("Permissão Negada (RLS). O administrador precisa autorizar edições públicas no banco de dados.");
+          }
+          throw error;
       }
-
-      const { data, error } = await query.select(); // Add select() to check if row was hit
-
-      if (error) throw error;
       
       if (!data || data.length === 0) {
-           // Failed - likely RLS or ID mismatch
-            throw new Error("Não foi possível atualizar o perfil. Nenhuma alteração realizada (Verifique permissões ou se o usuário ainda existe).");
+          console.warn('[Profile] Nenhuma linha afetada. Verifique se o ID existe ou se o RLS está bloqueando.');
+          throw new Error("Não foi possível salvar as alterações. Verifique se você tem permissão ou se o seu cadastro está ativo.");
       }
 
-      // Update Local State
       updateUser({
         ...user,
         foto_perfil_url: updates.foto_perfil_url || user.foto_perfil_url,
@@ -136,7 +123,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
       onClose();
 
     } catch (error: any) {
-      console.error(error);
+      console.error('[Profile] Erro ao atualizar:', error);
       addToast(error.message || 'Erro ao atualizar perfil.', 'error');
     } finally {
       setLoading(false);
@@ -157,7 +144,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
         hideClose={isForcedUpdate}
       >
         <form onSubmit={handleUpdate} className="space-y-6">
-          
           {isForcedUpdate && (
               <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-4 rounded-r">
                   <div className="flex items-center gap-2 mb-2">
@@ -170,13 +156,10 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
               </div>
           )}
 
-          {/* Photo Section */}
           <div className="space-y-4 pb-6 border-b border-gray-100">
             <h4 className="font-medium text-gray-900 flex items-center gap-2">
-              <ImageIcon size={18} className="text-indigo-500" />
-              Foto de Perfil
+              <ImageIcon size={18} className="text-indigo-500" /> Foto de Perfil
             </h4>
-            
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-indigo-100 overflow-hidden flex-shrink-0 relative">
                 {isUploading ? (
@@ -186,72 +169,40 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
                 ) : photoUrl ? (
                   <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = ''} />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <User size={32} />
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-xl font-bold">
+                    {user.nome.charAt(0)}
                   </div>
                 )}
               </div>
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileUpload} 
-                        accept="image/*" 
-                        className="hidden" 
-                    />
-                    <Button 
-                        type="button" 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => fileInputRef.current?.click()}
-                        isLoading={isUploading}
-                    >
-                        <Upload size={14} className="mr-2" />
-                        Carregar Foto
+                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
+                    <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} isLoading={isUploading}>
+                        <Upload size={14} className="mr-2" /> Carregar Foto
                     </Button>
-                    {photoUrl && (
-                        <Button 
-                            type="button" 
-                            size="sm" 
-                            variant="ghost" 
-                            className="text-red-500 hover:text-red-700"
-                            onClick={() => { setPhotoUrl(''); if(fileInputRef.current) fileInputRef.current.value = ''; }}
-                        >
-                            Remover
-                        </Button>
-                    )}
+                    {photoUrl && <Button type="button" size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => { setPhotoUrl(''); if(fileInputRef.current) fileInputRef.current.value = ''; }}>Remover</Button>}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Password Section */}
           <div className="space-y-4 pb-6 border-b border-gray-100">
             <h4 className="font-medium text-gray-900 flex items-center gap-2">
-              <Lock size={18} className="text-indigo-500" />
-              {isForcedUpdate ? "Definir Senha Forte" : "Alterar Senha"}
+              <Lock size={18} className="text-indigo-500" /> {isForcedUpdate ? "Definir Senha Forte" : "Alterar Senha"}
             </h4>
-            
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-1">
                   <Input 
-                    type="password"
-                    label="Nova Senha"
-                    placeholder="Digite sua nova senha"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required={isForcedUpdate}
+                    type="password" label="Nova Senha" placeholder="Digite sua nova senha" value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)} required={isForcedUpdate}
                     className={newPassword && !isPasswordStrong ? "border-red-300 focus:ring-red-200" : ""}
                   />
-                  
-                  {/* Password Requirements Checklist */}
                   {(newPassword || isForcedUpdate) && (
                       <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 mt-2">
-                          <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Requisitos da Senha:</p>
+                          <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Requisitos:</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                               {passwordRequirements.map(req => (
-                                  <div key={req.id} className={`flex items-center gap-2 text-xs transition-colors duration-200 ${req.valid ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
+                                  <div key={req.id} className={`flex items-center gap-2 text-xs ${req.valid ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
                                       {req.valid ? <Check size={12} strokeWidth={3} /> : <div className="w-3 h-3 rounded-full border border-gray-300" />}
                                       {req.label}
                                   </div>
@@ -260,52 +211,35 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ isOpen, onClos
                       </div>
                   )}
               </div>
-              
               <Input 
-                type="password"
-                label="Confirmar Nova Senha"
-                placeholder="Repita a nova senha"
-                value={confirmPassword}
+                type="password" label="Confirmar Nova Senha" placeholder="Repita a nova senha" value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 error={newPassword !== confirmPassword && confirmPassword ? "As senhas não coincidem" : undefined}
                 required={isForcedUpdate}
-                disabled={!isPasswordStrong}
               />
             </div>
           </div>
 
           <div className="flex justify-between items-center pt-2">
             <Button type="button" variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700 px-2" onClick={() => setIsLogoutConfirm(true)}>
-                <LogOut size={18} className="mr-2" /> Sair da Conta
+                <LogOut size={18} className="mr-2" /> Sair
             </Button>
             <div className="flex gap-3">
-                {!isForcedUpdate && (
-                    <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-                )}
-                <Button 
-                    type="submit" 
-                    isLoading={loading} 
-                    disabled={loading || (isForcedUpdate && (!isPasswordStrong || newPassword !== confirmPassword))}
-                    variant={isForcedUpdate ? "primary" : "primary"}
-                    className={isForcedUpdate && !isPasswordStrong ? "opacity-50 cursor-not-allowed" : ""}
-                >
-                    <ShieldCheck size={18} className="mr-2" />
-                    {isForcedUpdate ? 'Salvar e Continuar' : 'Salvar'}
+                {!isForcedUpdate && <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>}
+                <Button type="submit" isLoading={loading} disabled={loading || (isForcedUpdate && (!isPasswordStrong || newPassword !== confirmPassword))}>
+                    <ShieldCheck size={18} className="mr-2" /> Salvar
                 </Button>
             </div>
           </div>
         </form>
       </Modal>
 
-      {/* Logout Confirmation inside Profile Settings */}
       <Modal isOpen={isLogoutConfirm} onClose={() => setIsLogoutConfirm(false)} title="Sair da Conta">
         <div className="text-center space-y-4">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600">
-                <LogOut size={32} />
-            </div>
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600"><LogOut size={32} /></div>
             <div>
                 <h3 className="text-lg font-bold text-gray-800">Tem certeza?</h3>
-                <p className="text-gray-500">Você será desconectado e terá que fazer login novamente.</p>
+                <p className="text-gray-500">Você será desconectado do sistema.</p>
             </div>
             <div className="flex justify-center gap-4 pt-2">
                 <Button variant="secondary" onClick={() => setIsLogoutConfirm(false)}>Cancelar</Button>

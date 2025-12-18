@@ -40,16 +40,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log(`[Auth] Iniciando login para: ${cleanEmail} como ${type}`);
 
       // -----------------------------------------------------------------------
-      // ESTRATÉGIA 1: SUPABASE AUTH (Prioritária - RLS Friendly)
+      // ESTRATÉGIA 1: SUPABASE AUTH (RLS Friendly)
       // -----------------------------------------------------------------------
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: cleanPass
-      });
+      }).catch(() => ({ data: { user: null }, error: null })); // Prevents 400 crash
 
-      if (!authError && authData.user) {
-        console.log('[Auth] Autenticação Supabase OK. Buscando perfil...');
-        
+      if (!authError && authData?.user) {
         const { data: profileData } = await supabase
           .from(type)
           .select('*')
@@ -59,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (profileData) {
           finalUser = profileData;
+          console.log('[Auth] Logado via Supabase Auth.');
         }
       }
 
@@ -66,9 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // ESTRATÉGIA 2: LEGADO / TEXTO PURO (Fallback)
       // -----------------------------------------------------------------------
       if (!finalUser) {
-        console.log('[Auth] Auth falhou ou perfil não encontrado. Tentando método Legado (Tabela Direta)...');
-        
-        let { data: tableData, error: tableError } = await supabase
+        let { data: tableData } = await supabase
           .from(type)
           .select('*')
           .ilike('email', cleanEmail)
@@ -79,32 +76,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const dbPass = tableData.senha ? String(tableData.senha).trim() : '';
             if (dbPass === cleanPass) {
                 finalUser = tableData;
+                console.log('[Auth] Logado via Tabela Direta (Legado). Atenção: RLS pode bloquear edições.');
             } else {
                 setLoading(false);
                 return { success: false, message: 'Senha incorreta.' };
             }
-        } else {
-            // DIAGNÓSTICO DE RLS
-            // Se tableError for null, mas tableData também for null, é 99% chance de ser RLS bloqueando.
-            if (!tableError) {
-                console.warn(`[Auth] ALERTA: A busca na tabela '${type}' retornou vazio sem erro explícito. Isso geralmente indica que o RLS (Row Level Security) está bloqueando a leitura pública. Execute o script db_fix_rls.sql no Supabase.`);
-            }
-
-            console.warn('[Auth] Falha total: Email não encontrado em nenhuma estratégia.');
-            setLoading(false);
-            return { 
-                success: false, 
-                message: `E-mail não encontrado no perfil de ${type === 'bibliotecario' ? 'Bibliotecário' : 'Aluno/Professor'}. Se você é o administrador, verifique as políticas RLS (Execute db_fix_rls.sql).` 
-            };
         }
       }
 
-      // -----------------------------------------------------------------------
-      // SUCESSO
-      // -----------------------------------------------------------------------
       if (finalUser) {
+          // Normaliza o ID para que ProfileSettings saiba qual coluna usar
+          const userId = type === 'aluno' ? finalUser.matricula : (finalUser.id || finalUser.masp);
+          
           const userData: User = {
-            id: finalUser.id || finalUser.matricula || finalUser.masp,
+            id: userId,
             nome: finalUser.nome,
             email: finalUser.email,
             tipo: type,
@@ -124,12 +109,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setLoading(false);
-      return { success: false, message: 'Erro desconhecido ao processar login.' };
+      return { success: false, message: 'Usuário não encontrado ou credenciais inválidas.' };
 
     } catch (err: any) {
       console.error('[Auth] Erro crítico:', err);
       setLoading(false);
-      return { success: false, message: 'Erro de conexão ou configuração do sistema.' };
+      return { success: false, message: 'Erro de conexão com o servidor.' };
     }
   };
 
